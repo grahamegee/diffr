@@ -54,7 +54,7 @@ class Diff(object):
             self._indent = ' '*3
             self.depth = depth
             self.context = ()
-            if self.diffs[0].context:
+            if hasattr(self.diffs[0], 'context') and self.diffs[0].context:
                 from_start, _, to_start, _ = self.diffs[0].context
                 _, from_end, _, to_end = self.diffs[-1].context
                 self.context = (from_start, from_end, to_start, to_end)
@@ -199,14 +199,12 @@ class MappingDiffItem(DiffItem):
     :attribute key: The key from the original unwrapped item.
     :attribute state: Value state; choice of remove|insert|unchanged|changed.
     :attribute value: The value from the original unwrapped item.
-    :attribute context: Always None
     '''
-    def __init__(self, key_state, key, value_state, value, context=None):
+    def __init__(self, key_state, key, value_state, value):
         self.key_state = key_state
         self.key = key
         self.state = value_state
         self.value = value
-        self.context = context
 
     def __str__(self):
         key_repr = '{!s}: '.format(self.key)
@@ -218,8 +216,7 @@ class MappingDiffItem(DiffItem):
             self.key_state == other.key_state and
             self.key == other.key and
             self.state == other.state and
-            self.value == other.value and
-            self.context == other.context)
+            self.value == other.value)
 
     def __ne__(self, other):
         return not self == other

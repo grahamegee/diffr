@@ -216,11 +216,6 @@ class MappingDiffItemTests(unittest.TestCase):
             self.base_diff_item, diff.MappingDiffItem(
                 diff.insert, 'a', diff.insert, 2))
 
-    def test_MappingDiffItems_differ_by_context(self):
-        self.assertNotEqual(
-            self.base_diff_item, diff.MappingDiffItem(
-                diff.insert, 'a', diff.insert, 1, 1))
-
 
 class DiffBlockTests(unittest.TestCase):
     def test_diff_block_states_attribute(self):
