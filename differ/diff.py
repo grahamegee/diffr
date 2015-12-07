@@ -404,8 +404,6 @@ def diff_sequence(from_, to, context_limit=3, depth=0):
         if nested_information_wanted:
             unchanged_item, removal, insertion = _nested_diff_input(diff_block)
             if removal and insertion:
-                f_s, f_e, _, _ = removal.context
-                _, _, t_s, t_e = insertion.context
                 try:
                     item = diff(
                         removal.item, insertion.item, context_limit, depth + 1)
@@ -414,6 +412,8 @@ def diff_sequence(from_, to, context_limit=3, depth=0):
                 else:
                     nesting = True
         if nesting:
+            f_s, f_e, _, _ = removal.context
+            _, _, t_s, t_e = insertion.context
             diffs = [DiffItem(changed, item, (f_s, f_e, t_s, t_e))] + diffs
             if unchanged_item:
                 diffs = [unchanged_item] + diffs
