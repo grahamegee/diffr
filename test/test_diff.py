@@ -907,13 +907,14 @@ class DiffFunctionTests(unittest.TestCase):
     def test_diff_fail_different_types(self):
         self.assertRaisesRegexp(
             TypeError,
-            "diff params are different types <type 'list'> != <type 'str'>",
+            "diff params are different types {} != {}".format(
+                type([]), type('')),
             diff.diff, [], '')
 
     def test_diff_fail_not_a_diffable_type(self):
         self.assertRaisesRegexp(
             TypeError,
-            "No mechanism for diffing objects of type <type 'int'>",
+            "No mechanism for diffing objects of type {}".format(type(0)),
             diff.diff, 1, 2)
 
     def test_single_char_edge_case(self):
