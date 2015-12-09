@@ -282,7 +282,7 @@ class BacktrackTests(unittest.TestCase):
 class CreateDiffBlocksTests(unittest.TestCase):
     def test_empty_diff_block(self):
         db_factory = diff._create_diff_blocks(deque([]), deque([]), ())
-        self.assertEqual(db_factory.next(), diff.DiffBlock())
+        self.assertEqual(next(db_factory), diff.DiffBlock())
 
     def test_only_inserts(self):
         q1 = deque([])
@@ -293,7 +293,7 @@ class CreateDiffBlocksTests(unittest.TestCase):
             diff.DiffItem(diff.insert, 2, (0, 0, 1, 2))
         ])
         db_factory = diff._create_diff_blocks(q1, q2, lcs_marker)
-        self.assertEqual(db_factory.next(), expected_diff_block)
+        self.assertEqual(next(db_factory), expected_diff_block)
 
     def test_only_removals(self):
         q1 = deque([1, 2])
@@ -317,8 +317,8 @@ class CreateDiffBlocksTests(unittest.TestCase):
             diff.DiffItem(diff.unchanged, 1, (0, 1, 0, 1))
         ])
         db_factory = diff._create_diff_blocks(q1, q2, lcs_markers)
-        self.assertEqual(db_factory.next(), expected_diff_block_1)
-        self.assertEqual(db_factory.next(), expected_diff_block_2)
+        self.assertEqual(next(db_factory), expected_diff_block_1)
+        self.assertEqual(next(db_factory), expected_diff_block_2)
 
     def test_some_changes_after_an_unchanged_item(self):
         q1 = deque([0, 1, 2])
@@ -332,7 +332,7 @@ class CreateDiffBlocksTests(unittest.TestCase):
             diff.DiffItem(diff.insert, 4, (3, 3, 2, 3))
         ])
         db_factory = diff._create_diff_blocks(q1, q2, lcs_marker)
-        self.assertEqual(db_factory.next(), expected_diff_block)
+        self.assertEqual(next(db_factory), expected_diff_block)
 
     def test_changes_before_the_first_unchanged_item(self):
         q1 = deque([1, 4])
@@ -346,8 +346,8 @@ class CreateDiffBlocksTests(unittest.TestCase):
             diff.DiffItem(diff.insert, 2, (1, 1, 0, 1)),
         ])
         db_factory = diff._create_diff_blocks(q1, q2, lcs_markers)
-        self.assertEqual(db_factory.next(), expected_diff_block_1)
-        self.assertEqual(db_factory.next(), expected_diff_block_2)
+        self.assertEqual(next(db_factory), expected_diff_block_1)
+        self.assertEqual(next(db_factory), expected_diff_block_2)
 
 
 class DiffSequenceTest(unittest.TestCase):
