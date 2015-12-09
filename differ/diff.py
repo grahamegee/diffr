@@ -325,15 +325,15 @@ def _create_diff_blocks(from_, to, lcs):
         [2, -3, -4, +5 , +6] and [1]
     remember we are backtracking so DiffBlocks are taken from the right side.
     '''
-    prepend_insert = lambda diff_block: DiffBlock([
-        DiffItem(insert, to.pop(), (f + 1, f + 1, t, t + 1))
-    ] + diff_block)
-    prepend_remove = lambda diff_block: DiffBlock([
-        DiffItem(remove, from_.pop(), (f, f + 1, t + 1, t + 1))
-    ] + diff_block)
-    prepend_unchanged = lambda diff_block: DiffBlock([
-        DiffItem(unchanged, item, (f, f + 1, t, t + 1))
-    ] + diff_block)
+    prepend_insert = lambda diff_block: DiffBlock(
+        [DiffItem(insert, to.pop(), (f + 1, f + 1, t, t + 1))] + diff_block
+    )
+    prepend_remove = lambda diff_block: DiffBlock(
+        [DiffItem(remove, from_.pop(), (f, f + 1, t + 1, t + 1))] + diff_block
+    )
+    prepend_unchanged = lambda diff_block: DiffBlock(
+        [DiffItem(unchanged, item, (f, f + 1, t, t + 1))] + diff_block
+    )
     t = len(to) - 1
     f = len(from_) - 1
     for m_f, m_t in lcs:
@@ -435,18 +435,10 @@ def diff_set(from_, to, context_limit=3, _depth=0):
     :private parameter _depth: Keeps track of level of nesting during
     recursive calls, DO NOT USE.
     '''
-    insertions = to.difference(from_)
-    removals = from_.difference(to)
-    unchanged_items = from_.intersection(to)
-    diffs = []
-    for i in sorted(from_.union(to)):
-        if {i}.intersection(insertions):
-            diffs.append(DiffItem(insert, i))
-        elif {i}.intersection(unchanged_items):
-            diffs.append(DiffItem(unchanged, i))
-        else:
-            assert({i}.intersection(removals) == {i})
-            diffs.append(DiffItem(remove, i))
+    insertions = [DiffItem(insert, i) for i in to.difference(from_)]
+    removals = [DiffItem(remove, i) for i in from_.difference(to)]
+    unchanged_items = [DiffItem(unchanged, i) for i in from_.intersection(to)]
+    diffs = removals + unchanged_items + insertions
     set_diff = Diff(type(from_), diffs, context_limit, _depth)
     set_diff.create_context_blocks()
     return set_diff
@@ -465,30 +457,28 @@ def diff_mapping(from_, to, context_limit=3, _depth=0):
         block of change (a Diff.ContextBlock). Default is 3.
     :private parameter _depth: Keeps track of level of nesting during
     recursive calls, DO NOT USE.'''
-    common_keys = set(from_.keys()).intersection(set(to.keys()))
-    removals = set(from_.keys()).difference(common_keys)
-    insertions = set(to.keys()).difference(common_keys)
-    all_keys = sorted(set(from_.keys()).union(set(to.keys())))
-    diffs = []
-    for k in all_keys:
-        if {k}.intersection(removals):
-            diffs.append(MappingDiffItem(remove, k, remove, from_[k]))
-        elif {k}.intersection(common_keys):
-            if from_[k] == to[k]:
-                diffs.append(MappingDiffItem(
-                    unchanged, k, unchanged, from_[k]))
-            else:
-                try:
-                    val = diff(from_[k], to[k], context_limit, _depth + 1)
-                except TypeError:
-                    diffs.append(MappingDiffItem(
-                        unchanged, k, remove, from_[k]))
-                    diffs.append(MappingDiffItem(unchanged, k, insert, to[k]))
-                else:
-                    diffs.append(MappingDiffItem(unchanged, k, changed, val))
+    removals = [
+        MappingDiffItem(remove, k, remove, val)
+        for k, val in from_.items() if k not in to.keys()
+    ]
+    insertions = [
+        MappingDiffItem(insert, k, insert, val)
+        for k, val in to.items() if k not in from_.keys()
+    ]
+    common_keys = [k for k in from_.keys() if k in to.keys()]
+    other = []
+    for k in common_keys:
+        if from_[k] == to[k]:
+            other.append(MappingDiffItem(unchanged, k, unchanged, from_[k]))
         else:
-            assert({k}.intersection(insertions) == {k})
-            diffs.append(MappingDiffItem(insert, k, insert, to[k]))
+            try:
+                val = diff(from_[k], to[k], context_limit, _depth + 1)
+            except TypeError:
+                other.append(MappingDiffItem(unchanged, k, remove, from_[k]))
+                other.append(MappingDiffItem(unchanged, k, insert, to[k]))
+            else:
+                other.append(MappingDiffItem(unchanged, k, changed, val))
+    diffs = removals + other + insertions
     dict_diff = Diff(type(from_), diffs, context_limit, _depth)
     dict_diff.create_context_blocks()
     return dict_diff
