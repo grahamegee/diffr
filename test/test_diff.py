@@ -576,6 +576,9 @@ class DiffSequenceTest(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(list, diffs[2:4])
         ]
+        if sys.version_info.major >= 3:
+            print(diff_obj)
+            print(expected_diff)
         self.assertEqual(diff_obj, expected_diff)
 
     def test_single_char_edgecase_in_str(self):
