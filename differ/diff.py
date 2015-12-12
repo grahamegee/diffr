@@ -49,7 +49,8 @@ class Diff(object):
 
         ContextBlocks are uniquely identified by these attributes.
         '''
-        def __init__(self, diffs, depth=0):
+        def __init__(self, obj_type, diffs, depth=0):
+            self.type = obj_type
             self.diffs = diffs
             self._indent = ' '*3
             self.depth = depth
@@ -137,7 +138,7 @@ class Diff(object):
 
     def create_context_blocks(self):
         self.context_blocks = [
-            self.ContextBlock(self.diffs[start:end], self.depth)
+            self.ContextBlock(self.type, self.diffs[start:end], self.depth)
             for start, end in self._create_context_markers()]
 
     def __eq__(self, other):
