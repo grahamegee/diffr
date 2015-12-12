@@ -166,13 +166,17 @@ class Diff(object):
             for start, end in self._create_context_markers()]
 
     def __eq__(self, other):
-        ordered = is_ordered(self.type)
-        return (
-            self.type == other.type and
-            diffs_are_equal(self, other) and
-            self.context_blocks == other.context_blocks if ordered else True and
-            self.depth == other.depth and
+        eq = (
+            self.type == other.type,
+            diffs_are_equal(self, other),
+            self.context_blocks == other.context_blocks,
+            self.depth == other.depth,
             self.context_limit == other.context_limit)
+        context_blocks = 2
+        if is_ordered(self.type):
+            return all(eq)
+        else:
+            return all(eq[:context_blocks] + eq[context_blocks + 1:])
 
     def __ne__(self, other):
         return not self == other
