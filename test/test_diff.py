@@ -1,3 +1,4 @@
+import sys
 import unittest
 from differ import diff
 from collections import OrderedDict, namedtuple, deque
@@ -1005,9 +1006,13 @@ class DiffStringTests(unittest.TestCase):
             '{} {}'.format(diff.insert('+'), diff.insert('a')),
             '{} {}'.format(diff.insert('+'), diff.insert('b'))
         ]
-        expected_diff_output = '\n'.join(expected_diff_items)
-        self.assertEqual(
-            diff_obj.context_blocks[0].__str__(), str(expected_diff_output))
+        # allow the expected output to be unordered
+        actual_string = diff_obj.context_blocks[0].__str__()
+        actual_items = actual_string.split('\n')
+        if sys.version_info.major >= 3:
+            self.assertCountEqual(expected_diff_items, actual_items)
+        else:
+            self.assertItemsEqual(expected_diff_items, actual_items)
 
     def test_diff_item_is_a_nested_diff(self):
         dict1 = {1: 'ab'}
