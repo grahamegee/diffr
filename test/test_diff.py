@@ -694,8 +694,6 @@ class DiffMappingTests(unittest.TestCase):
         expected_diff = diff.Diff(dict, diffs)
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(dict, diffs[0:3])]
-        print(expected_diff)
-        print(diff_obj)
         self.assertEqual(diff_obj, expected_diff)
 
     def test_mostly_inserts(self):
@@ -710,8 +708,6 @@ class DiffMappingTests(unittest.TestCase):
         expected_diff = diff.Diff(dict, diffs)
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(dict, diffs[1:])]
-        print(expected_diff)
-        print(diff_obj)
         self.assertEqual(diff_obj, expected_diff)
 
     def test_common_keys_values_not_diffable(self):

@@ -1,5 +1,5 @@
 from blessings import Terminal
-from collections import Sequence, Mapping, Set, deque
+from collections import Sequence, Mapping, Set, deque, OrderedDict
 
 term = Terminal()
 # FIXME: - what if the users terminal has a white bg?
@@ -7,6 +7,29 @@ insert = term.cyan
 remove = term.red
 unchanged = term.white
 changed = term.yellow
+
+
+def is_ordered(collection):
+    return any((issubclass(collection, c) for c in (Sequence, OrderedDict)))
+
+
+def sequences_contain_same_items(a, b):
+    for item in a:
+        try:
+            i = b.index(item)
+        except ValueError:
+            return False
+        b = b[:i] + b[i+1:]
+    return not b
+
+
+def diffs_are_equal(diff_a, diff_b):
+    # somone is bound to try and use this library with an implementation of
+    # ordered set, I can only deal with the ones I know about.
+    if is_ordered(diff_a.type):
+        return diff_a.diffs == diff_b.diffs
+    else:
+        return sequences_contain_same_items(diff_a.diffs, diff_b.diffs)
 
 
 class StopRecursionError(Exception):
@@ -84,7 +107,8 @@ class Diff(object):
 
         def __eq__(self, other):
             return (
-                self.diffs == other.diffs and
+                self.type == other.type and
+                diffs_are_equal(self, other) and
                 self.context == other.context and
                 self.depth == other.depth)
 
@@ -142,10 +166,11 @@ class Diff(object):
             for start, end in self._create_context_markers()]
 
     def __eq__(self, other):
+        ordered = is_ordered(self.type)
         return (
             self.type == other.type and
-            self.diffs == other.diffs and
-            self.context_blocks == other.context_blocks and
+            diffs_are_equal(self, other) and
+            self.context_blocks == other.context_blocks if ordered else True and
             self.depth == other.depth and
             self.context_limit == other.context_limit)
 
