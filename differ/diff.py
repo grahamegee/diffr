@@ -531,7 +531,7 @@ def diff(from_, to, context_limit=3, _depth=0):
             'diff params are different types {} != {}'.format(
                 type(from_), type(to)))
     elif isinstance(from_, Sequence):
-        if from_ and from_ is from_[0] and to and to is to[0]:
+        if from_ and from_ == from_[0] and to and to == to[0]:
             return _handle_edge_cases(from_, to, context_limit, _depth)
         else:
             return diff_sequence(from_, to, context_limit, _depth)
