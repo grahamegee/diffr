@@ -531,7 +531,7 @@ def diff(from_, to, context_limit=3, _depth=0):
             'diff params are different types {} != {}'.format(
                 type(from_), type(to)))
     elif isinstance(from_, Sequence):
-        if from_ and from_ == from_[0] and to and to == to[0]:
+        if are_single_character_strings(from_, to):
             return _handle_edge_cases(from_, to, context_limit, _depth)
         else:
             return diff_sequence(from_, to, context_limit, _depth)
@@ -545,9 +545,12 @@ def diff(from_, to, context_limit=3, _depth=0):
                 type(from_)))
 
 
+def are_single_character_strings(a, b):
+    return type(a) == type(b) == str and len(a) == len(b) == 1
+
+
 def _handle_edge_cases(from_, to, context_limit, depth):
-    are_strings = lambda f, t: type(f) is type(t) is str
-    if depth == 0 and are_strings(from_, to):
+    if depth == 0:
         diffs = [
             DiffItem(remove, from_, (0, 1, 0, 0)),
             DiffItem(insert, to, (1, 1, 0, 1))
@@ -555,10 +558,6 @@ def _handle_edge_cases(from_, to, context_limit, depth):
         d = Diff(type(from_), diffs, context_limit, depth)
         d.create_context_blocks()
         return d
-    elif are_strings(from_, to):
+    else:
         # this gets handled by the caller, and still produces a non-nested diff
         raise TypeError('Do not recursively diff a single character')
-    else:
-        # this prevents a diff being created at all
-        raise StopRecursionError(
-            'Cannot recursively diff infinitely recursive structures')

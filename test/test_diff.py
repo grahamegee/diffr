@@ -930,17 +930,6 @@ class DiffFunctionTests(unittest.TestCase):
         ]
         self.assertEqual(diff_obj, expected_diff)
 
-    def test_recursive_structures_diff(self):
-        # handle edge cases 3
-        l = []
-        r = []
-        l.append(l)
-        r.append(r)
-        self.assertRaisesRegexp(
-            diff.StopRecursionError,
-            'Cannot recursively diff infinitely recursive structures',
-            diff.diff, l, r)
-
 
 class DiffStringTests(unittest.TestCase):
     '''
