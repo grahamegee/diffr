@@ -32,10 +32,6 @@ def diffs_are_equal(diff_a, diff_b):
         return sequences_contain_same_items(diff_a.diffs, diff_b.diffs)
 
 
-class StopRecursionError(Exception):
-    pass
-
-
 class Diff(object):
     '''
     A collection of DiffItems.
