@@ -4,6 +4,72 @@ from differ import diff
 from collections import OrderedDict, namedtuple, deque
 
 
+class SequencesContainSameItemsTests(unittest.TestCase):
+    def test_sequences_only_out_of_order(self):
+        a = [1, 2, 'a', {1: 'e'}]
+        b = [{1: 'e'}, 2, 1, 'a']
+        self.assertTrue(diff.sequences_contain_same_items(a, b))
+
+    def test_sequences_contain_single_difference(self):
+        a = [1, 2, 3]
+        b = [2, 3, 4]
+        self.assertFalse(diff.sequences_contain_same_items(a, b))
+
+    def test_sequence_a_bigger_than_b(self):
+        a = [1, 2, 3]
+        b = [2, 3]
+        self.assertFalse(diff.sequences_contain_same_items(a, b))
+
+    def test_sequence_b_bigger_than_a(self):
+        a = [2, 3]
+        b = [2, 3, 4]
+        self.assertFalse(diff.sequences_contain_same_items(a, b))
+
+
+class DiffAreEqualTests(unittest.TestCase):
+    def test_sequence_diffs_are_equal(self):
+        diff_a = diff.diff([1, 2, 3], [2, 3, 4])
+        diff_b = diff.diff([1, 2, 3], [2, 3, 4])
+        self.assertTrue(diff.diffs_are_equal(diff_a, diff_b))
+
+    def test_ordered_dicts_are_equal(self):
+        d = {1: 'a', 2: 'b', 7: 'c', 3: 'd'}
+        diff_a = diff.diff(
+            OrderedDict(sorted(d.items(), key=lambda k: k[0])),
+            OrderedDict(sorted(d.items(), key=lambda k: k[0])))
+        diff_b = diff.diff(
+            OrderedDict(sorted(d.items(), key=lambda k: k[0])),
+            OrderedDict(sorted(d.items(), key=lambda k: k[0])))
+        self.assertTrue(diff.diffs_are_equal(diff_a, diff_b))
+
+    def test_ordered_dicts_are_out_of_order(self):
+        d = {1: 'a', 2: 'b', 7: 'c', 3: 'd'}
+        diff_a = diff.diff(
+            OrderedDict(sorted(d.items(), key=lambda k: k[0])),
+            OrderedDict(sorted(d.items(), key=lambda k: k[0])))
+        diff_b = diff.diff(
+            OrderedDict(sorted(d.items(), key=lambda k: k[1])),
+            OrderedDict(sorted(d.items(), key=lambda k: k[1])))
+        self.assertFalse(diff.diffs_are_equal(diff_a, diff_b))
+
+    def test_dict_diffs_are_equal(self):
+        # these should get seeded differently, fairly regularly in python 3
+        # the diffs will be equivalent, but ordering of DiffItems will differ
+        d1 = {-1: 'y', 0: 'z', 1: 'a', 2: 'b', 3: 'c', 4: 'e'}
+        d2 = {1: 'a', 2: 'b', 3: 'd', 4: 'f'}
+        diff_a = diff.diff(d1, d2)
+        diff_b = diff.diff(d1, d2)
+        self.assertTrue(diff.diffs_are_equal(diff_a, diff_b))
+
+    def test_dict_diffs_not_equal(self):
+        d1 = {1: 'a', 2: 'b', 3: 'c'}
+        d2 = {1: 'a', 2: 'b', 3: 'd'}
+        d3 = {1: 'a', 2: 'b', 3: 'e'}
+        diff_a = diff.diff(d1, d2)
+        diff_b = diff.diff(d1, d3)
+        self.assertFalse(diff.diffs_are_equal(diff_a, diff_b))
+
+
 class DiffTests(unittest.TestCase):
     def test_contexts_start_and_end_with_modified_items(self):
         # this constraint could change; people may want more context...
@@ -1015,14 +1081,31 @@ class DiffStringTests(unittest.TestCase):
             diff_obj.context_blocks[0].__str__(), expected_diff_output)
 
     def test_empty_diff(self):
-        pass
+        set1 = set()
+        set2 = set()
+        diff_obj = diff.diff(set1, set2)
+        expected_diff_output = '{}\n{}'.format(
+            diff.unchanged('{!s}('.format(type(set1))),
+            diff.unchanged(')'))
+        self.assertEqual(diff_obj.__str__(), expected_diff_output)
 
     # Diff tests
     def test_only_context_blocks_are_displayed(self):
-        pass
-
-    def test_more_than_one_context_block(self):
-        pass
-
-    def test_type_information_is_displayed(self):
-        pass
+        a = [1, 0, 0, 0, 0, 1]
+        b = [2, 0, 0, 0, 0, 2]
+        diff_obj = diff.diff(a, b)
+        expected_diff_output = [
+            diff.unchanged('{!s}('.format(type(a))),
+            '@@ {}{},{} {}{},{} @@'.format(
+                diff.remove('-'), diff.remove('0'), diff.remove('1'),
+                diff.insert('+'), diff.insert('0'), diff.insert('1')),
+            '{} {}'.format(diff.remove('-'), diff.remove('1')),
+            '{} {}'.format(diff.insert('+'), diff.insert('2')),
+            '@@ {}{},{} {}{},{} @@'.format(
+                diff.remove('-'), diff.remove('5'), diff.remove('6'),
+                diff.insert('+'), diff.insert('5'), diff.insert('6')),
+            '{} {}'.format(diff.remove('-'), diff.remove('1')),
+            '{} {}'.format(diff.insert('+'), diff.insert('2')),
+            diff.unchanged(')')
+        ]
+        self.assertEqual(diff_obj.__str__(), '\n'.join(expected_diff_output))
