@@ -1,5 +1,6 @@
 from blessings import Terminal
 from collections import Sequence, Mapping, Set, deque, OrderedDict
+from itertools import chain
 
 term = Terminal()
 # FIXME: - what if the users terminal has a white bg?
@@ -557,3 +558,31 @@ def _handle_edge_cases(from_, to, context_limit, depth):
     else:
         # this gets handled by the caller, and still produces a non-nested diff
         raise TypeError('Do not recursively diff a single character')
+
+
+def patch(obj, diff):
+    if type(obj) != diff.type:
+        raise TypeError
+    elif isinstance(obj, Sequence):
+        return patch_sequence(obj, diff)
+    elif isinstance(obj, Set):
+        return patch_set(obj, diff)
+    elif isinstance(obj, Mapping):
+        return patch_mapping(obj, diff)
+    else:
+        raise TypeError
+
+
+def patch_sequence(obj, diff):
+    pass
+
+
+def patch_mapping(obj, diff):
+    pass
+
+
+def patch_set(obj, diff):
+    changes = list(chain(*[cb.diffs for cb in diff.context_blocks]))
+    removals = set([di.item for di in changes if di.state is remove])
+    inserts = set([di.item for di in changes if di.state is insert])
+    return obj.difference(removals).union(inserts)
