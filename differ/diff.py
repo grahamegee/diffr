@@ -1,6 +1,5 @@
 from blessings import Terminal
 from collections import Sequence, Mapping, Set, deque, OrderedDict
-from itertools import chain
 
 term = Terminal()
 # FIXME: - what if the users terminal has a white bg?
@@ -574,15 +573,29 @@ def patch(obj, diff):
 
 
 def patch_sequence(obj, diff):
-    pass
+    patched = type(obj)()
+    for diff_item in diff.diffs:
+        if diff_item.state is unchanged or diff_item.state is insert:
+            patched.append(diff_item.item)
+        elif diff_item.state is changed:
+            assert(type(diff_item.item) == Diff)
+            start, end, _, _ = diff_item.context
+            patched.append(patch(obj[start:end], diff_item.item))
+    return patched
 
 
 def patch_mapping(obj, diff):
-    pass
+    patched = type(obj)()
+    for map_item in diff.diffs:
+        if map_item.state is unchanged or map_item.state is insert:
+            patched[map_item.key] = map_item.value
+        elif map_item.key_state is unchanged and map_item.state is changed:
+            assert(type(map_item.value) == Diff)
+            patched[map_item.key] = patch(obj[map_item.key], map_item.value)
+    return patched
 
 
 def patch_set(obj, diff):
-    changes = list(chain(*[cb.diffs for cb in diff.context_blocks]))
-    removals = set([di.item for di in changes if di.state is remove])
-    inserts = set([di.item for di in changes if di.state is insert])
-    return obj.difference(removals).union(inserts)
+    removals = set([di.item for di in diff.diffs if di.state is remove])
+    inserts = set([di.item for di in diff.diffs if di.state is insert])
+    return type(obj)(obj.difference(removals).union(inserts))
