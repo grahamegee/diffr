@@ -588,11 +588,10 @@ def diff(from_, to, context_limit=3, _depth=0):
         return diff_sequence(from_, to, context_limit, _depth)
     elif isinstance(from_, Set):
         return diff_set(from_, to, context_limit, _depth)
+    elif isinstance(from_, OrderedDict):
+        return diff_ordered_mapping(from_, to, context_limit, _depth)
     elif isinstance(from_, Mapping):
-        if is_ordered(type(from_)):
-            return diff_ordered_mapping(from_, to, context_limit, _depth)
-        else:
-            return diff_mapping(from_, to, context_limit, _depth)
+        return diff_mapping(from_, to, context_limit, _depth)
     else:
         raise TypeError(
             'No mechanism for diffing objects of type {}'.format(

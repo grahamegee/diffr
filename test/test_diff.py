@@ -632,15 +632,22 @@ class DiffSequenceTest(unittest.TestCase):
         seq1 = [1, 2, 'a']
         seq2 = [1, 2, 'b']
         diff_obj = diff.diff_sequence(seq1, seq2)
+        nested_diffs = [
+            diff.DiffItem(diff.remove, 'a', (0, 1, 0, 0)),
+            diff.DiffItem(diff.insert, 'b', (1, 1, 0, 1))
+        ]
+        nested_diff = diff.Diff(str, nested_diffs, depth=1)
+        nested_diff.context_blocks = [
+            nested_diff.ContextBlock(str, nested_diffs, depth=1)
+        ]
         diffs = [
             diff.DiffItem(diff.unchanged, 1, (0, 1, 0, 1)),
             diff.DiffItem(diff.unchanged, 2, (1, 2, 1, 2)),
-            diff.DiffItem(diff.remove, 'a', (2, 3, 2, 2)),
-            diff.DiffItem(diff.insert, 'b', (3, 3, 2, 3)),
+            diff.DiffItem(diff.changed, nested_diff, (2, 3, 2, 3)),
         ]
         expected_diff = diff.Diff(list, diffs)
         expected_diff.context_blocks = [
-            expected_diff.ContextBlock(list, diffs[2:4])
+            expected_diff.ContextBlock(list, diffs[2:])
         ]
         self.assertEqual(diff_obj, expected_diff)
 
@@ -846,9 +853,16 @@ class DiffMappingTests(unittest.TestCase):
         map1 = {1: 'a'}
         map2 = {1: 'b'}
         diff_obj = diff.diff_mapping(map1, map2)
+        nested_diffs = [
+            diff.DiffItem(diff.remove, 'a', (0, 1, 0, 0)),
+            diff.DiffItem(diff.insert, 'b', (1, 1, 0, 1))
+        ]
+        nested_diff = diff.Diff(str, nested_diffs, depth=1)
+        nested_diff.context_blocks = [
+            nested_diff.ContextBlock(str, nested_diffs, depth=1)
+        ]
         diffs = [
-            diff.MappingDiffItem(diff.unchanged, 1, diff.remove, 'a'),
-            diff.MappingDiffItem(diff.unchanged, 1, diff.insert, 'b')
+            diff.MappingDiffItem(diff.unchanged, 1, diff.changed, nested_diff)
         ]
         expected_diff = diff.Diff(dict, diffs)
         expected_diff.context_blocks = [
@@ -871,13 +885,13 @@ class DiffFunctionTests(unittest.TestCase):
         od2 = OrderedDict(sorted(d2.items(), key=lambda i: i[1]))
         diff_obj = diff.diff(od1, od2)
         diffs = [
-            diff.MappingDiffItem(diff.remove, 'b', diff.remove, 3),
             diff.MappingDiffItem(diff.unchanged, 'd', diff.unchanged, 1),
             diff.MappingDiffItem(diff.unchanged, 'c', diff.unchanged, 2),
+            diff.MappingDiffItem(diff.remove, 'b', diff.remove, 3),
             diff.MappingDiffItem(diff.insert, 'a', diff.insert, 3)]
         expected_diff = diff.Diff(OrderedDict, diffs)
         expected_diff.context_blocks = [
-            expected_diff.ContextBlock(OrderedDict, diffs)]
+            expected_diff.ContextBlock(OrderedDict, diffs[2:])]
         self.assertEqual(diff_obj, expected_diff)
 
     def test_can_diff_sequence_type(self):
