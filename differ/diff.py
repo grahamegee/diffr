@@ -445,7 +445,8 @@ def diff_sequence(from_, to, context_limit=3, depth=0):
     matrix = _build_lcs_matrix(from_, to)
     diff_block_pipeline = _create_diff_blocks(
         deque(from_), deque(to), _backtrack(matrix))
-    nested_information_wanted = len(from_) == len(to)
+    nested_information_wanted = (
+        len(from_) == len(to) and not isinstance(from_, str))
     diffs = []
     for diff_block in diff_block_pipeline:
         nesting = False
@@ -584,10 +585,7 @@ def diff(from_, to, context_limit=3, _depth=0):
             'diff params are different types {} != {}'.format(
                 type(from_), type(to)))
     elif isinstance(from_, Sequence):
-        if are_single_character_strings(from_, to):
-            return _handle_edge_cases(from_, to, context_limit, _depth)
-        else:
-            return diff_sequence(from_, to, context_limit, _depth)
+        return diff_sequence(from_, to, context_limit, _depth)
     elif isinstance(from_, Set):
         return diff_set(from_, to, context_limit, _depth)
     elif isinstance(from_, Mapping):
@@ -599,24 +597,6 @@ def diff(from_, to, context_limit=3, _depth=0):
         raise TypeError(
             'No mechanism for diffing objects of type {}'.format(
                 type(from_)))
-
-
-def are_single_character_strings(a, b):
-    return type(a) == type(b) == str and len(a) == len(b) == 1
-
-
-def _handle_edge_cases(from_, to, context_limit, depth):
-    if depth == 0:
-        diffs = [
-            DiffItem(remove, from_, (0, 1, 0, 0)),
-            DiffItem(insert, to, (1, 1, 0, 1))
-        ]
-        d = Diff(type(from_), diffs, context_limit, depth)
-        d.create_context_blocks()
-        return d
-    else:
-        # this gets handled by the caller, and still produces a non-nested diff
-        raise TypeError('Do not recursively diff a single character')
 
 
 def patch(obj, diff):
