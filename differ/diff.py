@@ -389,6 +389,27 @@ def _create_diff_blocks(from_, to, lcs):
     yield diff_block
 
 
+def _create_key_diffs(from_keys, to_keys, lcs):
+    f = deque(enumerate(from_keys))
+    t = deque(enumerate(to_keys))
+    for m_f, m_t in lcs:
+        while f[-1][0] > m_f:
+            _, key = f.pop()
+            yield remove, key
+        while t[-1][0] > m_t:
+            _, key = t.pop()
+            yield insert, key
+        f.pop()
+        _, key = t.pop()
+        yield unchanged, key
+    while f:
+        _, key = f.pop()
+        yield remove, key
+    while t:
+        _, key = t.pop()
+        yield insert, key
+
+
 def _nested_diff_input(diff_block):
     if diff_block.states == (unchanged, remove, insert):
         unchanged_item, removal, insertion = diff_block
@@ -510,6 +531,41 @@ def diff_mapping(from_, to, context_limit=3, _depth=0):
     return dict_diff
 
 
+def diff_ordered_mapping(from_, to, context_limit=3, _depth=0):
+    matrix = _build_lcs_matrix(from_.keys(), to.keys())
+    key_diff_pipeline = _create_key_diffs(
+        from_.keys(), to.keys(), _backtrack(matrix))
+    diffs = []
+    for state, key in key_diff_pipeline:
+        if state is remove:
+            diffs = [MappingDiffItem(remove, key, remove, from_[key])] + diffs
+        elif state is insert:
+            diffs = [MappingDiffItem(insert, key, insert, from_[key])] + diffs
+        else:
+            assert(state is unchanged)
+            if from_[key] == to[key]:
+                diffs = [
+                    MappingDiffItem(unchanged, key, unchanged, from_[key])
+                ] + diffs
+            else:
+                try:
+                    val = diff(from_[key], to[key], context_limit, _depth + 1)
+                except TypeError:
+                    diffs = [
+                        MappingDiffItem(unchanged, key, remove, from_[key])
+                    ] + diffs
+                    diffs = [
+                        MappingDiffItem(unchanged, key, insert, to[key])
+                    ] + diffs
+                else:
+                    diffs = [
+                        MappingDiffItem(unchanged, key, changed, val)
+                    ] + diffs
+    dict_diff = Diff(type(from_), diffs, context_limit, _depth)
+    dict_diff.create_context_blocks()
+    return dict_diff
+
+
 def diff(from_, to, context_limit=3, _depth=0):
     '''
     Return a Diff object of two collections. Recursive calls may be
@@ -534,7 +590,10 @@ def diff(from_, to, context_limit=3, _depth=0):
     elif isinstance(from_, Set):
         return diff_set(from_, to, context_limit, _depth)
     elif isinstance(from_, Mapping):
-        return diff_mapping(from_, to, context_limit, _depth)
+        if is_ordered(type(from_)):
+            return diff_ordered_mapping(from_, to, context_limit, _depth)
+        else:
+            return diff_mapping(from_, to, context_limit, _depth)
     else:
         raise TypeError(
             'No mechanism for diffing objects of type {}'.format(
