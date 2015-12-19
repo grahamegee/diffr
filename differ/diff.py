@@ -394,21 +394,21 @@ def _create_key_diffs(from_keys, to_keys, lcs):
     f = deque(enumerate(from_keys))
     t = deque(enumerate(to_keys))
     for m_f, m_t in lcs:
-        while f[-1][0] > m_f:
-            _, key = f.pop()
-            yield remove, key
         while t[-1][0] > m_t:
             _, key = t.pop()
             yield insert, key
+        while f[-1][0] > m_f:
+            _, key = f.pop()
+            yield remove, key
         f.pop()
         _, key = t.pop()
         yield unchanged, key
-    while f:
-        _, key = f.pop()
-        yield remove, key
     while t:
         _, key = t.pop()
         yield insert, key
+    while f:
+        _, key = f.pop()
+        yield remove, key
 
 
 def _nested_diff_input(diff_block):
@@ -541,7 +541,7 @@ def diff_ordered_mapping(from_, to, context_limit=3, _depth=0):
         if state is remove:
             diffs = [MappingDiffItem(remove, key, remove, from_[key])] + diffs
         elif state is insert:
-            diffs = [MappingDiffItem(insert, key, insert, from_[key])] + diffs
+            diffs = [MappingDiffItem(insert, key, insert, to[key])] + diffs
         else:
             assert(state is unchanged)
             if from_[key] == to[key]:
