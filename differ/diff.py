@@ -1,5 +1,6 @@
 from blessings import Terminal
 from collections import Sequence, Mapping, Set, deque, OrderedDict
+from copy import deepcopy
 
 term = Terminal()
 # FIXME: - what if the users terminal has a white bg?
@@ -631,30 +632,99 @@ def patch(obj, diff):
         raise TypeError
 
 
+def validate_removal(item, diff_item):
+    '''
+    Items subject to removal must exist in the target object at the specific
+    index.
+    '''
+    if item != diff_item.item:
+        raise ValueError('Diff not compatible with patch target')
+
+
+def validate_insertion(start, end, patched_obj):
+    '''
+    Insertions can only happen just before the beginning of the sequence, just
+    after the end of the sequence, or somewhere in the middle of the sequence.
+    '''
+    assert(start == end)
+    if not (0 <= start <= len(patched_obj)):
+        raise ValueError('Diff not compatible with patch target')
+
+
+def validate_change(item, diff_item):
+    '''
+    Items subject to change must exist in the target object and must be of the
+    correct type
+    '''
+    if not(item) or (not type(item) == diff_item.item.type):
+        raise ValueError('Diff not compatible with patch target')
+
+
 def patch_sequence(obj, diff):
-    patched = type(obj)()
+    patched = deepcopy(obj)
+    offset = 0
     for diff_item in diff.diffs:
-        if diff_item.state is unchanged or diff_item.state is insert:
-            patched.append(diff_item.item)
+        start, end, _, _ = diff_item.context
+        if diff_item.state is remove:
+            validate_removal(obj[start], diff_item)
+            patched = patched[:start + offset] + patched[end + offset:]
+            offset -= 1
+        elif diff_item.state is insert:
+            validate_insertion(start + offset, end + offset, patched)
+            patched = (
+                patched[:start + offset] +
+                type(obj)(diff_item.item) +
+                patched[end + offset:])
+            offset += 1
         elif diff_item.state is changed:
             assert(type(diff_item.item) == Diff)
-            start, end, _, _ = diff_item.context
-            patched.append(patch(obj[start:end], diff_item.item))
+            validate_change(obj[start], diff_item)
+            patched = (
+                patched[:start + offset] +
+                type(obj)([patch(obj[start], diff_item.item)]) +
+                patched[end + offset:])
     return patched
 
 
+def try_get_values(values):
+    try:
+        return values()
+    except KeyError:
+        raise ValueError('Diff not compatible with patch target')
+
+
+def validate_mapping_removal(values):
+    removal_val, original_val = try_get_values(values)
+    if removal_val != original_val:
+        raise ValueError('Diff not compatible with patch target')
+
+
+def validate_mapping_change(values):
+    removal_val, original_val = try_get_values(values)
+    if type(original_val) != removal_val.type:
+        raise ValueError('Diff not compatible with patch target')
+
+
 def patch_mapping(obj, diff):
-    patched = type(obj)()
+    patched = deepcopy(obj)
     for map_item in diff.diffs:
-        if map_item.state is unchanged or map_item.state is insert:
+        if map_item.state is remove:
+            validate_mapping_removal(
+                lambda: (map_item.value, patched[map_item.key]))
+            del patched[map_item.key]
+        elif map_item.state is insert:
             patched[map_item.key] = map_item.value
-        elif map_item.key_state is unchanged and map_item.state is changed:
+        elif map_item.state is changed:
             assert(type(map_item.value) == Diff)
+            validate_mapping_change(
+                lambda: (map_item.value, patched[map_item.key]))
             patched[map_item.key] = patch(obj[map_item.key], map_item.value)
     return patched
 
 
 def patch_set(obj, diff):
     removals = set([di.item for di in diff.diffs if di.state is remove])
+    if removals.intersection(obj) != removals:
+        raise ValueError('Diff not compatible with patch target')
     inserts = set([di.item for di in diff.diffs if di.state is insert])
     return type(obj)(obj.difference(removals).union(inserts))
