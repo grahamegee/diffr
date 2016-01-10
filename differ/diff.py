@@ -249,19 +249,13 @@ class MappingDiffItem(DiffItem):
         return not self == other
 
 
-class DiffBlock(list):
+class Chunk(list):
     @property
     def states(self):
         return tuple(i.state for i in self)
 
-    def add_removal(self, item, context):
-        self.append(DiffItem(remove, item, context))
-
-    def add_insert(self, item, context):
-        self.append(DiffItem(insert, item, context))
-
-    def add_unchanged(self, item, context):
-        self.append(DiffItem(unchanged, item, context))
+    def add_diff_item(self, state, item, context=None):
+        self.append(DiffItem(state, item, context))
 
 
 def _build_lcs_matrix(seq1, seq2):
@@ -325,8 +319,7 @@ def _backtrack(matrix):
     and yields each item of ONE of the possible largest common subsequences
     (LCS) from seq1 and seq2. Each item is a tuple of the form (i, j) It starts
     at the bottom right corner of the matrix and works backwards up to the top
-    left. This is the first part of a pipeline which feeds into
-    create_diff_blocks.
+    left.
 
     This is an interpretation of the algorithm presented on
     https://en.wikipedia.org/wiki/Longest_common_subsequence_problem
@@ -353,65 +346,53 @@ def find_largest_common_subsequence(seq1, seq2):
     return reversed([i for i in _backtrack(_build_lcs_matrix(seq1, seq2))])
 
 
-def _create_diff_blocks(from_, to, lcs):
+def diff_item_data_factory(from_, to, lcs):
     '''
-    This generator is the second part of a pipeline. It takes the output from
-    _backtrack, and queues of the two sequences as input and yields DiffBlocks.
-    Each DiffBlock contains any inserts and removes popped off of the queues up
-    to first LCS item (items that occur in both sequences) that is found. For
-    example if the two sequences are:
-        [1, 2, 3, 4] and [1, 2, 5, 6]
-    there would be 2 DiffBlocks:
-        [2, -3, -4, +5 , +6] and [1]
-    remember we are backtracking so DiffBlocks are taken from the right side.
+    This generator yields the parameters required to create DiffItem's for each
+    of the items in the input sequences. The indices of all items are compared
+    agains the lcs (largest common subsequence) indices to decide whether a
+    DiffItem is an insertion, removal or unchanged item.
     '''
     t = f = 0
     for m_f, m_t in lcs:
-        diff_block = DiffBlock()
         while f < m_f:
-            diff_block.add_removal(from_.popleft(), (f, f+1, t, t))
+            yield remove, from_.popleft(), (f, f+1, t, t)
             f += 1
         while t < m_t:
-            diff_block.add_insert(to.popleft(), (f, f, t, t+1))
+            yield insert, to.popleft(), (f, f, t, t+1)
             t += 1
         # its an arbitrary choice whether to extract the item from from_ or to,
         # but both must be consumed.
         item = from_.popleft()
         to.popleft()
-        diff_block.add_unchanged(item, (f, f+1, t, t+1))
-        yield diff_block
+        yield unchanged, item, (f, f+1, t, t+1)
         f += 1
         t += 1
     # clean up any removals or inserts before the first lcs marker.
-    diff_block = DiffBlock()
     while from_:
-        diff_block.add_removal(from_.popleft(), (f, f+1, t, t))
+        yield remove, from_.popleft(), (f, f+1, t, t)
         f += 1
     while to:
-        diff_block.add_insert(to.popleft(), (f, f, t, t+1))
+        yield insert, to.popleft(), (f, f, t, t+1)
         t += 1
-    yield diff_block
 
 
-def _create_key_diffs(from_keys, to_keys, lcs):
-    f = deque(enumerate(from_keys))
-    t = deque(enumerate(to_keys))
-    for m_f, m_t in lcs:
-        while t[-1][0] > m_t:
-            _, key = t.pop()
-            yield insert, key
-        while f[-1][0] > m_f:
-            _, key = f.pop()
-            yield remove, key
-        f.pop()
-        _, key = t.pop()
-        yield unchanged, key
-    while t:
-        _, key = t.pop()
-        yield insert, key
-    while f:
-        _, key = f.pop()
-        yield remove, key
+def chunker(diff_item_data_stream):
+    '''
+    Chunker yields small chunks of the DiffItems; each chunk is terminated with
+    an unchanged item if there is one. The final chunk may not be terminated by
+    an unchanged item because sequences can divergre after the final item in
+    their largest common subsequence. These chunks are used in diff_sequence
+    to determine whether or not to carry out a recursive diff.
+    '''
+    chunk = Chunk()
+    for params in diff_item_data_stream:
+        state, _, _ = params
+        chunk.add_diff_item(*params)
+        if state is unchanged:
+            yield chunk
+            chunk = Chunk()
+    yield chunk
 
 
 def _nested_diff_input(diff_block):
@@ -440,21 +421,24 @@ def diff_sequence(from_, to, context_limit=3, depth=0):
     :private parameter _depth: Keeps track of level of nesting during
         recursive calls, DO NOT USE.
 
-    A generator pipeline consisting of _backtrack followed by create_diff_blocks
-    is used to provide DiffBlocks (small isolated chunks of the diff to work on
-    ). nested diffing is only worth bothering with when a DiffBlock contains a
-    single insert paired with a single remove.
+    A generator pipeline consisting of diff_item_data_factory followed by
+    chunker is used to provide chunks (small subsets of the diff) to work on.
+    nested diffing is only worth bothering with when a chunk contains a single
+    insert paired with a single remove (and optionally and unchaged item).
     '''
-    diff_block_pipeline = _create_diff_blocks(
-        deque(from_), deque(to),
-        find_largest_common_subsequence(from_, to))
+    chunks = chunker(
+        diff_item_data_factory(
+            deque(from_), deque(to),
+            find_largest_common_subsequence(from_, to)
+        )
+    )
     nested_information_wanted = (
         len(from_) == len(to) and not isinstance(from_, str))
     diffs = []
-    for diff_block in diff_block_pipeline:
+    for chunk in chunks:
         nesting = False
         if nested_information_wanted:
-            removal, insertion, unchanged_item = _nested_diff_input(diff_block)
+            removal, insertion, unchanged_item = _nested_diff_input(chunk)
             if removal and insertion:
                 try:
                     item = diff(
@@ -470,7 +454,7 @@ def diff_sequence(from_, to, context_limit=3, depth=0):
             if unchanged_item:
                 diffs += [unchanged_item]
         else:
-            diffs += diff_block
+            diffs += chunk
     seq_diff = Diff(type(from_), diffs, context_limit, depth)
     seq_diff.create_context_blocks()
     return seq_diff
@@ -537,35 +521,36 @@ def diff_mapping(from_, to, context_limit=3, _depth=0):
 
 
 def diff_ordered_mapping(from_, to, context_limit=3, _depth=0):
-    matrix = _build_lcs_matrix(from_.keys(), to.keys())
-    key_diff_pipeline = _create_key_diffs(
-        from_.keys(), to.keys(), _backtrack(matrix))
+    key_diff_pipeline = diff_item_data_factory(
+        deque(from_.keys()), deque(to.keys()),
+        find_largest_common_subsequence(from_.keys(), to.keys())
+    )
     diffs = []
-    for state, key in key_diff_pipeline:
+    for state, key, _ in key_diff_pipeline:
         if state is remove:
-            diffs = [MappingDiffItem(remove, key, remove, from_[key])] + diffs
+            diffs += [MappingDiffItem(remove, key, remove, from_[key])]
         elif state is insert:
-            diffs = [MappingDiffItem(insert, key, insert, to[key])] + diffs
+            diffs += [MappingDiffItem(insert, key, insert, to[key])]
         else:
             assert(state is unchanged)
             if from_[key] == to[key]:
-                diffs = [
+                diffs += [
                     MappingDiffItem(unchanged, key, unchanged, from_[key])
-                ] + diffs
+                ]
             else:
                 try:
                     val = diff(from_[key], to[key], context_limit, _depth + 1)
                 except TypeError:
-                    diffs = [
+                    diffs += [
                         MappingDiffItem(unchanged, key, remove, from_[key])
-                    ] + diffs
-                    diffs = [
+                    ]
+                    diffs += [
                         MappingDiffItem(unchanged, key, insert, to[key])
-                    ] + diffs
+                    ]
                 else:
-                    diffs = [
+                    diffs += [
                         MappingDiffItem(unchanged, key, changed, val)
-                    ] + diffs
+                    ]
     dict_diff = Diff(type(from_), diffs, context_limit, _depth)
     dict_diff.create_context_blocks()
     return dict_diff

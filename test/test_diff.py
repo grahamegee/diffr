@@ -284,15 +284,15 @@ class MappingDiffItemTests(unittest.TestCase):
                 diff.insert, 'a', diff.insert, 2))
 
 
-class DiffBlockTests(unittest.TestCase):
+class ChunkTests(unittest.TestCase):
     def test_diff_block_states_attribute(self):
-        diff_block = diff.DiffBlock([
+        chunk = diff.Chunk([
             diff.DiffItem(diff.unchanged, 1),
             diff.DiffItem(diff.remove, 1),
             diff.DiffItem(diff.insert, 1)
         ])
         self.assertEqual(
-            diff_block.states,
+            chunk.states,
             (diff.unchanged, diff.remove, diff.insert))
 
 
@@ -346,75 +346,87 @@ class BacktrackTests(unittest.TestCase):
             [i for i in reversed([x for x in lcs_gen])])
 
 
-class CreateDiffBlocksTests(unittest.TestCase):
+class ChunkerTests(unittest.TestCase):
     def test_empty_diff_block(self):
-        db_factory = diff._create_diff_blocks(deque([]), deque([]), ())
-        self.assertEqual(next(db_factory), diff.DiffBlock())
+        chunks = diff.chunker(
+            diff.diff_item_data_factory(deque([]), deque([]), ())
+        )
+        self.assertEqual(next(chunks), diff.Chunk())
 
     def test_only_inserts(self):
         q1 = deque([])
         q2 = deque([1, 2])
         lcs_marker = ()
-        expected_diff_block = diff.DiffBlock([
+        expected_diff_block = diff.Chunk([
             diff.DiffItem(diff.insert, 1, (0, 0, 0, 1)),
             diff.DiffItem(diff.insert, 2, (0, 0, 1, 2))
         ])
-        db_factory = diff._create_diff_blocks(q1, q2, lcs_marker)
-        self.assertEqual(next(db_factory), expected_diff_block)
+        chunks = diff.chunker(
+            diff.diff_item_data_factory(q1, q2, lcs_marker)
+        )
+        self.assertEqual(next(chunks), expected_diff_block)
 
     def test_only_removals(self):
         q1 = deque([1, 2])
         q2 = deque([])
         lcs_marker = ()
-        expected_diff_block = diff.DiffBlock([
+        expected_diff_block = diff.Chunk([
             diff.DiffItem(diff.remove, 1, (0, 1, 0, 0)),
             diff.DiffItem(diff.remove, 2, (1, 2, 0, 0))
         ])
-        db_factory = diff._create_diff_blocks(q1, q2, lcs_marker)
-        self.assertEqual(next(db_factory), expected_diff_block)
+        chunks = diff.chunker(
+            diff.diff_item_data_factory(q1, q2, lcs_marker)
+        )
+        self.assertEqual(next(chunks), expected_diff_block)
 
     def test_only_unchanged(self):
         q1 = deque([1, 2])
         q2 = deque([1, 2])
         lcs_markers = ((0, 0), (1, 1))
-        expected_diff_block_1 = diff.DiffBlock([
+        chunk_1 = diff.Chunk([
             diff.DiffItem(diff.unchanged, 1, (0, 1, 0, 1))
         ])
-        expected_diff_block_2 = diff.DiffBlock([
+        chunk_2 = diff.Chunk([
             diff.DiffItem(diff.unchanged, 2, (1, 2, 1, 2))
         ])
-        db_factory = diff._create_diff_blocks(q1, q2, lcs_markers)
-        self.assertEqual(next(db_factory), expected_diff_block_1)
-        self.assertEqual(next(db_factory), expected_diff_block_2)
+        chunks = diff.chunker(
+            diff.diff_item_data_factory(q1, q2, lcs_markers)
+        )
+        self.assertEqual(next(chunks), chunk_1)
+        self.assertEqual(next(chunks), chunk_2)
 
     def test_some_changes_after_an_unchanged_item(self):
         q1 = deque([0, 1, 2])
         q2 = deque([0, 3, 4])
         lcs_marker = ((0, 0),)
-        expected_diff_block_1 = diff.DiffBlock([
+        chunk_1 = diff.Chunk([
             diff.DiffItem(diff.unchanged, 0, (0, 1, 0, 1))
         ])
-        expected_diff_block_2 = diff.DiffBlock([
+        chunk_2 = diff.Chunk([
             diff.DiffItem(diff.remove, 1, (1, 2, 1, 1)),
             diff.DiffItem(diff.remove, 2, (2, 3, 1, 1)),
             diff.DiffItem(diff.insert, 3, (3, 3, 1, 2)),
             diff.DiffItem(diff.insert, 4, (3, 3, 2, 3))
         ])
-        db_factory = diff._create_diff_blocks(q1, q2, lcs_marker)
-        self.assertEqual(next(db_factory), expected_diff_block_1)
-        self.assertEqual(next(db_factory), expected_diff_block_2)
+        chunks = diff.chunker(
+            diff.diff_item_data_factory(q1, q2, lcs_marker)
+        )
+        self.assertEqual(next(chunks), chunk_1)
+        self.assertEqual(next(chunks), chunk_2)
 
     def test_changes_before_the_first_unchanged_item(self):
         q1 = deque([1, 4])
         q2 = deque([2, 4])
         lcs_markers = ((1, 1),)
-        expected_diff_block_1 = diff.DiffBlock([
+        chunk = diff.Chunk([
             diff.DiffItem(diff.remove, 1, (0, 1, 0, 0)),
             diff.DiffItem(diff.insert, 2, (1, 1, 0, 1)),
             diff.DiffItem(diff.unchanged, 4, (1, 2, 1, 2))
         ])
-        db_factory = diff._create_diff_blocks(q1, q2, lcs_markers)
-        self.assertEqual(next(db_factory), expected_diff_block_1)
+        chunks = diff.chunker(
+            diff.diff_item_data_factory(q1, q2, lcs_markers)
+        )
+        self.assertEqual(next(chunks), chunk)
 
 
 class DiffSequenceTest(unittest.TestCase):
