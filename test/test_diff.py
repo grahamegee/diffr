@@ -26,7 +26,7 @@ class SequencesContainSameItemsTests(unittest.TestCase):
         self.assertFalse(diff.sequences_contain_same_items(a, b))
 
 
-class DiffAreEqualTests(unittest.TestCase):
+class DiffsAreEqualTests(unittest.TestCase):
     def test_sequence_diffs_are_equal(self):
         diff_a = diff.diff([1, 2, 3], [2, 3, 4])
         diff_b = diff.diff([1, 2, 3], [2, 3, 4])
@@ -626,9 +626,6 @@ class DiffSequenceTest(unittest.TestCase):
         self.assertEqual(diff_obj.depth, 4)
 
     def test_single_char_edgecase_in_list(self):
-        # handle edge cases 2, pass the TypeError back to the caller
-        # if we don't deal with this case we can end up hitting max recursion
-        # depth.
         seq1 = [1, 2, 'a']
         seq2 = [1, 2, 'b']
         diff_obj = diff.diff_sequence(seq1, seq2)
@@ -652,7 +649,6 @@ class DiffSequenceTest(unittest.TestCase):
         self.assertEqual(diff_obj, expected_diff)
 
     def test_single_char_edgecase_in_str(self):
-        # handle edge cases 2, pass the TypeError back to the caller
         # there should be no attempt at recursively diffing the final characters
         # ie the diff should be flat.
         seq1 = 'abc'
@@ -848,8 +844,6 @@ class DiffMappingTests(unittest.TestCase):
         self.assertEqual(diff_obj.depth, 2)
 
     def test_single_char_edge_case_in_dict(self):
-        # handle edge cases 2, pass the TypeError back to the caller
-        # make sure that we don't endlessly recurse on the strings.
         map1 = {1: 'a'}
         map2 = {1: 'b'}
         diff_obj = diff.diff_mapping(map1, map2)
@@ -995,8 +989,6 @@ class DiffFunctionTests(unittest.TestCase):
             diff.diff, 1, 2)
 
     def test_single_char_edge_case(self):
-        # handle edge cases 1
-        # make sure this is handled at the correct level (within diff)
         d1 = 'a'
         d2 = 'b'
         diff_obj = diff.diff(d1, d2)
