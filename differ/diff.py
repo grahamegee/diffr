@@ -254,7 +254,7 @@ class Chunk(list):
     def states(self):
         return tuple(i.state for i in self)
 
-    def add_diff_item(self, state, item, context=None):
+    def add_diff_item(self, state, item, context):
         self.append(DiffItem(state, item, context))
 
 
