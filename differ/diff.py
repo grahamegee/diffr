@@ -254,6 +254,15 @@ class DiffBlock(list):
     def states(self):
         return tuple(i.state for i in self)
 
+    def add_removal(self, item, context):
+        self.append(DiffItem(remove, item, context))
+
+    def add_insert(self, item, context):
+        self.append(DiffItem(insert, item, context))
+
+    def add_unchanged(self, item, context):
+        self.append(DiffItem(unchanged, item, context))
+
 
 def _build_lcs_matrix(seq1, seq2):
     '''
@@ -340,6 +349,10 @@ def _backtrack(matrix):
             yield (i, j)
 
 
+def find_largest_common_subsequence(seq1, seq2):
+    return reversed([i for i in _backtrack(_build_lcs_matrix(seq1, seq2))])
+
+
 def _create_diff_blocks(from_, to, lcs):
     '''
     This generator is the second part of a pipeline. It takes the output from
@@ -352,41 +365,31 @@ def _create_diff_blocks(from_, to, lcs):
         [2, -3, -4, +5 , +6] and [1]
     remember we are backtracking so DiffBlocks are taken from the right side.
     '''
-    prepend_insert = lambda diff_block: DiffBlock(
-        [DiffItem(insert, to.pop(), (f + 1, f + 1, t, t + 1))] + diff_block
-    )
-    prepend_remove = lambda diff_block: DiffBlock(
-        [DiffItem(remove, from_.pop(), (f, f + 1, t + 1, t + 1))] + diff_block
-    )
-    prepend_unchanged = lambda diff_block: DiffBlock(
-        [DiffItem(unchanged, item, (f, f + 1, t, t + 1))] + diff_block
-    )
-    t = len(to) - 1
-    f = len(from_) - 1
+    t = f = 0
     for m_f, m_t in lcs:
         diff_block = DiffBlock()
-        while t > m_t:
-            diff_block = prepend_insert(diff_block)
-            t -= 1
-        while f > m_f:
-            diff_block = prepend_remove(diff_block)
-            f -= 1
+        while f < m_f:
+            diff_block.add_removal(from_.popleft(), (f, f+1, t, t))
+            f += 1
+        while t < m_t:
+            diff_block.add_insert(to.popleft(), (f, f, t, t+1))
+            t += 1
         # its an arbitrary choice whether to extract the item from from_ or to,
         # but both must be consumed.
-        item = from_.pop()
-        to.pop()
-        diff_block = prepend_unchanged(diff_block)
+        item = from_.popleft()
+        to.popleft()
+        diff_block.add_unchanged(item, (f, f+1, t, t+1))
         yield diff_block
-        f -= 1
-        t -= 1
+        f += 1
+        t += 1
     # clean up any removals or inserts before the first lcs marker.
     diff_block = DiffBlock()
-    while to:
-        diff_block = prepend_insert(diff_block)
-        t -= 1
     while from_:
-        diff_block = prepend_remove(diff_block)
-        f -= 1
+        diff_block.add_removal(from_.popleft(), (f, f+1, t, t))
+        f += 1
+    while to:
+        diff_block.add_insert(to.popleft(), (f, f, t, t+1))
+        t += 1
     yield diff_block
 
 
@@ -412,14 +415,14 @@ def _create_key_diffs(from_keys, to_keys, lcs):
 
 
 def _nested_diff_input(diff_block):
-    if diff_block.states == (unchanged, remove, insert):
-        unchanged_item, removal, insertion = diff_block
+    if diff_block.states == (remove, insert, unchanged):
+        removal, insertion, unchanged_item = diff_block
     elif diff_block.states == (remove, insert):
         unchanged_item = None
         removal, insertion = diff_block
     else:
-        unchanged_item = removal = insertion = None
-    return unchanged_item, removal, insertion
+        removal = insertion = unchanged_item = None
+    return removal, insertion, unchanged_item
 
 
 def diff_sequence(from_, to, context_limit=3, depth=0):
@@ -442,16 +445,16 @@ def diff_sequence(from_, to, context_limit=3, depth=0):
     ). nested diffing is only worth bothering with when a DiffBlock contains a
     single insert paired with a single remove.
     '''
-    matrix = _build_lcs_matrix(from_, to)
     diff_block_pipeline = _create_diff_blocks(
-        deque(from_), deque(to), _backtrack(matrix))
+        deque(from_), deque(to),
+        find_largest_common_subsequence(from_, to))
     nested_information_wanted = (
         len(from_) == len(to) and not isinstance(from_, str))
     diffs = []
     for diff_block in diff_block_pipeline:
         nesting = False
         if nested_information_wanted:
-            unchanged_item, removal, insertion = _nested_diff_input(diff_block)
+            removal, insertion, unchanged_item = _nested_diff_input(diff_block)
             if removal and insertion:
                 try:
                     item = diff(
@@ -463,11 +466,11 @@ def diff_sequence(from_, to, context_limit=3, depth=0):
         if nesting:
             f_s, f_e, _, _ = removal.context
             _, _, t_s, t_e = insertion.context
-            diffs = [DiffItem(changed, item, (f_s, f_e, t_s, t_e))] + diffs
+            diffs += [DiffItem(changed, item, (f_s, f_e, t_s, t_e))]
             if unchanged_item:
-                diffs = [unchanged_item] + diffs
+                diffs += [unchanged_item]
         else:
-            diffs = diff_block + diffs
+            diffs += diff_block
     seq_diff = Diff(type(from_), diffs, context_limit, depth)
     seq_diff.create_context_blocks()
     return seq_diff
