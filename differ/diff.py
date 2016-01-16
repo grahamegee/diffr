@@ -368,7 +368,7 @@ def diff_item_data_factory(from_, to, lcs):
         yield unchanged, item, (f, f+1, t, t+1)
         f += 1
         t += 1
-    # clean up any removals or inserts before the first lcs marker.
+    # clean up any removals or inserts after the last lcs marker.
     while from_:
         yield remove, from_.popleft(), (f, f+1, t, t)
         f += 1
@@ -381,7 +381,7 @@ def chunker(diff_item_data_stream):
     '''
     Chunker yields small chunks of the DiffItems; each chunk is terminated with
     an unchanged item if there is one. The final chunk may not be terminated by
-    an unchanged item because sequences can divergre after the final item in
+    an unchanged item because sequences can diverge after the final item in
     their largest common subsequence. These chunks are used in diff_sequence
     to determine whether or not to carry out a recursive diff.
     '''
@@ -395,12 +395,12 @@ def chunker(diff_item_data_stream):
     yield chunk
 
 
-def _nested_diff_input(diff_block):
-    if diff_block.states == (remove, insert, unchanged):
-        removal, insertion, unchanged_item = diff_block
-    elif diff_block.states == (remove, insert):
+def _nested_diff_input(chunk):
+    if chunk.states == (remove, insert, unchanged):
+        removal, insertion, unchanged_item = chunk
+    elif chunk.states == (remove, insert):
         unchanged_item = None
-        removal, insertion = diff_block
+        removal, insertion = chunk
     else:
         removal = insertion = unchanged_item = None
     return removal, insertion, unchanged_item
@@ -612,6 +612,7 @@ def validate_insertion(start, end, patched_obj):
     '''
     Insertions can only happen just before the beginning of the sequence, just
     after the end of the sequence, or somewhere in the middle of the sequence.
+    so basically anywhere then you fucking muppet?!..
     '''
     assert(start == end)
     if not (0 <= start <= len(patched_obj)):
