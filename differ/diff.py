@@ -121,6 +121,7 @@ class Diff(object):
         self.indent = '   '
         self.start = unchanged('{}('.format(self.type))
         self.end = unchanged(')')
+        self.create_context_blocks()
 
     def _create_context_markers(self):
         # FIXME: I suspect this can be simplified, but spent a good day getting
@@ -456,7 +457,6 @@ def diff_sequence(from_, to, context_limit=3, depth=0):
         else:
             diffs += chunk
     seq_diff = Diff(type(from_), diffs, context_limit, depth)
-    seq_diff.create_context_blocks()
     return seq_diff
 
 
@@ -476,7 +476,6 @@ def diff_set(from_, to, context_limit=3, _depth=0):
     unchanged_items = [DiffItem(unchanged, i) for i in from_.intersection(to)]
     diffs = removals + unchanged_items + insertions
     set_diff = Diff(type(from_), diffs, context_limit, _depth)
-    set_diff.create_context_blocks()
     return set_diff
 
 
@@ -516,7 +515,6 @@ def diff_mapping(from_, to, context_limit=3, _depth=0):
                 other.append(MappingDiffItem(unchanged, k, changed, val))
     diffs = removals + other + insertions
     dict_diff = Diff(type(from_), diffs, context_limit, _depth)
-    dict_diff.create_context_blocks()
     return dict_diff
 
 
@@ -552,7 +550,6 @@ def diff_ordered_mapping(from_, to, context_limit=3, _depth=0):
                         MappingDiffItem(unchanged, key, changed, val)
                     ]
     dict_diff = Diff(type(from_), diffs, context_limit, _depth)
-    dict_diff.create_context_blocks()
     return dict_diff
 
 
