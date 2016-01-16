@@ -877,6 +877,147 @@ class DiffMappingTests(unittest.TestCase):
         self.assertEqual(diff_obj, expected_diff)
 
 
+class DiffOrderedMapping(unittest.TestCase):
+    def test_no_difference(self):
+        d1 = {'a': 1}
+        diff_obj = diff.diff_ordered_mapping(OrderedDict(d1), OrderedDict(d1))
+        diffs = [
+            diff.MappingDiffItem(diff.unchanged, 'a', diff.unchanged, 1)]
+        expected_diff = diff.Diff(OrderedDict, diffs)
+        self.assertEqual(diff_obj, expected_diff)
+
+    def test_empty_diff(self):
+        diff_obj = diff.diff_ordered_mapping(OrderedDict({}), OrderedDict({}))
+        expected_diff = diff.Diff(OrderedDict, [])
+        self.assertEqual(diff_obj, expected_diff)
+
+    def test_common_keys_values_not_diffable(self):
+        d1 = {'a': 1, 'b': 2, 'c': 3}
+        d2 = {'a': 1, 'b': 3, 'c': 3}
+        diff_obj = diff.diff_ordered_mapping(
+            OrderedDict(sorted(d1.items(), key=lambda i: i[0])),
+            OrderedDict(sorted(d2.items(), key=lambda i: i[0]))
+        )
+        diffs = [
+            diff.MappingDiffItem(diff.unchanged, 'a', diff.unchanged, 1),
+            diff.MappingDiffItem(diff.unchanged, 'b', diff.remove, 2),
+            diff.MappingDiffItem(diff.unchanged, 'b', diff.insert, 3),
+            diff.MappingDiffItem(diff.unchanged, 'c', diff.unchanged, 3)
+        ]
+        expected_diff = diff.Diff(OrderedDict, diffs)
+        expected_diff.context_blocks = [
+            expected_diff.ContextBlock(OrderedDict, diffs[1:3])
+        ]
+        self.assertEqual(diff_obj, expected_diff)
+
+    def test_common_keys_values_different_types(self):
+        d1 = {'a': 1, 'b': ['a'], 'c': 3}
+        d2 = {'a': 1, 'b': 'a', 'c': 3}
+        diff_obj = diff.diff_ordered_mapping(
+            OrderedDict(sorted(d1.items(), key=lambda i: i[0])),
+            OrderedDict(sorted(d2.items(), key=lambda i: i[0]))
+        )
+        diffs = [
+            diff.MappingDiffItem(diff.unchanged, 'a', diff.unchanged, 1),
+            diff.MappingDiffItem(diff.unchanged, 'b', diff.remove, ['a']),
+            diff.MappingDiffItem(diff.unchanged, 'b', diff.insert, 'a'),
+            diff.MappingDiffItem(diff.unchanged, 'c', diff.unchanged, 3)
+        ]
+        expected_diff = diff.Diff(OrderedDict, diffs)
+        expected_diff.context_blocks = [
+            expected_diff.ContextBlock(OrderedDict, diffs[1:3])
+        ]
+        self.assertEqual(diff_obj, expected_diff)
+
+    def test_common_keys_diff_order_matters_1(self):
+        '''
+        There are two possible lcs's for the keys here. ('a', 'b') and
+        ('a', 'c') the lcs algorithm picks only one of them (('a', 'b') in this
+        case). We therefore get a recursive diff at key 'b'. and an insert and
+        remove on key 'c'. If this were a standard Mapping type key 'c' would
+        be unchanged.
+        '''
+        d1 = OrderedDict(sorted(
+            {'a': 1, 'b': 'a', 'c': 3}.items(), key=lambda i: i[0]))
+        d2 = OrderedDict(sorted({'a': 1, 'c': 3}.items(), key=lambda i: i[0]))
+        d2['b'] = 'b'
+        diff_obj = diff.diff_ordered_mapping(d1, d2)
+        nested_diffs = [
+            diff.DiffItem(diff.remove, 'a', (0, 1, 0, 0)),
+            diff.DiffItem(diff.insert, 'b', (1, 1, 0, 1))
+        ]
+        nested_diff = diff.Diff(str, nested_diffs, depth=1)
+        nested_diff.context_blocks = [
+            nested_diff.ContextBlock(str, nested_diffs, depth=1)
+        ]
+        diffs = [
+            diff.MappingDiffItem(diff.unchanged, 'a', diff.unchanged, 1),
+            diff.MappingDiffItem(diff.insert, 'c', diff.insert, 3),
+            diff.MappingDiffItem(
+                diff.unchanged, 'b', diff.changed, nested_diff),
+            diff.MappingDiffItem(diff.remove, 'c', diff.remove, 3)
+        ]
+        expected_diff = diff.Diff(OrderedDict, diffs)
+        expected_diff.context_blocks = [
+            expected_diff.ContextBlock(OrderedDict, diffs[1:])
+        ]
+        self.assertEqual(diff_obj, expected_diff)
+
+    def test_common_keys_diff_order_matters_2(self):
+        '''
+        The other possibility from number 1 above wherby we end up with no
+        recursive diff. You actually end up with insert b: b, remove b: b which
+        looks odd but is one of the possible minimal edits.
+        '''
+        d1 = OrderedDict(sorted({'a': 1, 'c': 3}.items(), key=lambda i: i[0]))
+        d1['b'] = 'b'
+        d2 = OrderedDict(
+            sorted({'a': 1, 'b': 'b', 'c': 3}.items(), key=lambda i: i[0]))
+        diff_obj = diff.diff_ordered_mapping(d1, d2)
+        diffs = [
+            diff.MappingDiffItem(diff.unchanged, 'a', diff.unchanged, 1),
+            diff.MappingDiffItem(diff.insert, 'b', diff.insert, 'b'),
+            diff.MappingDiffItem(
+                diff.unchanged, 'c', diff.unchanged, 3),
+            diff.MappingDiffItem(diff.remove, 'b', diff.remove, 'b')
+        ]
+        expected_diff = diff.Diff(OrderedDict, diffs)
+        expected_diff.context_blocks = [
+            expected_diff.ContextBlock(OrderedDict, diffs[1:])
+        ]
+        self.assertEqual(diff_obj, expected_diff)
+
+    def test_recursive_diff_when_different_lengths(self):
+        '''
+        Unlike Sequences, we should still attempt recursive diffs when the
+        Ordered Mappings are different sizes.
+        '''
+        d1 = OrderedDict(
+            sorted({'a': 1, 'b': [2]}.items(), key=lambda i: i[0]))
+        d2 = OrderedDict(
+            sorted({'a': 1, 'b': [3], 'c': 4}.items(), key=lambda i: i[0]))
+        diff_obj = diff.diff_ordered_mapping(d1, d2)
+        nested_diffs = [
+            diff.DiffItem(diff.remove, 2, (0, 1, 0, 0)),
+            diff.DiffItem(diff.insert, 3, (1, 1, 0, 1))
+        ]
+        nested_diff_obj = diff.Diff(list, nested_diffs, depth=1)
+        nested_diff_obj.context_blocks = [
+            nested_diff_obj.ContextBlock(list, nested_diffs, depth=1)
+        ]
+        diffs = [
+            diff.MappingDiffItem(diff.unchanged, 'a', diff.unchanged, 1),
+            diff.MappingDiffItem(
+                diff.unchanged, 'b', diff.changed, nested_diff_obj),
+            diff.MappingDiffItem(diff.insert, 'c', diff.insert, 4)
+        ]
+        expected_diff = diff.Diff(OrderedDict, diffs)
+        expected_diff.context_blocks = [
+            expected_diff.ContextBlock(OrderedDict, diffs[1:])
+        ]
+        self.assertEqual(diff_obj, expected_diff)
+
+
 class DiffFunctionTests(unittest.TestCase):
     '''
     Many of the built in types have been tested extensively at the lower
