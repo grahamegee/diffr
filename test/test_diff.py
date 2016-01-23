@@ -431,10 +431,11 @@ class ChunkerTests(unittest.TestCase):
 
 class DiffSequenceTest(unittest.TestCase):
     def test_empty_diff(self):
-        diff_obj = diff.diff_sequence([], [])
-        expected_diff = diff.Diff(list, [])
-        self.assertEqual(
-            diff_obj, expected_diff)
+        seq = []
+        diff_obj = diff.diff_sequence(seq, seq)
+        expected_diff = diff.Diff(list, seq)
+        self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq, diff_obj), seq)
 
     def test_no_differences(self):
         seq = [1, 2]
@@ -443,8 +444,8 @@ class DiffSequenceTest(unittest.TestCase):
             diff.DiffItem(diff.unchanged, 1, (0, 1, 0, 1)),
             diff.DiffItem(diff.unchanged, 2, (1, 2, 1, 2))]
         expected_diff = diff.Diff(list, diffs)
-        self.assertEqual(
-            diff_obj, expected_diff)
+        self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq, diff_obj), seq)
 
     # --------------------------------------------------------------------------
     # This block of tests is a bit vague, but is designed to give us confidence
@@ -465,6 +466,7 @@ class DiffSequenceTest(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(str, diffs[1:])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
     def test_mainly_unchanged(self):
         seq1 = (1, 2, 3, 4, 5, 6, 7)
@@ -484,6 +486,7 @@ class DiffSequenceTest(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(tuple, diffs)]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
     def test_mainly_inserts(self):
         seq1 = 'hi'
@@ -500,6 +503,7 @@ class DiffSequenceTest(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(str, diffs[1:])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
     def test_context_blocks_provides_slices(self):
         seq1 = 'um hello there'
@@ -529,6 +533,7 @@ class DiffSequenceTest(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(list, diffs[1:])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
     def test_no_recursion_item_not_diffable(self):
         '''seq1[1] and seq2[2] would be subject to a recursive diff if they
@@ -545,6 +550,7 @@ class DiffSequenceTest(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(list, diffs[1:3])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
     def test_no_recursion_removal_and_insert_not_same_type(self):
         '''seq1[1] and seq2[1] would be subject to a recursive diff if they
@@ -561,6 +567,7 @@ class DiffSequenceTest(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(list, diffs[1:3])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
     def test_dont_try_recursive_diff_if_sequences_are_different_lengths(self):
         seq1 = (1, 'ab', 2, 3)
@@ -576,6 +583,7 @@ class DiffSequenceTest(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(tuple, diffs[1:])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
     def test_successful_recursive_diff(self):
         # _nested_diff_input matches (unchanged, insert, remove)
@@ -597,6 +605,7 @@ class DiffSequenceTest(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(tuple, [diffs[1]])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
     def test_recursive_diff_before_first_unchanged_item(self):
         seq1 = [[1], 2]
@@ -616,6 +625,7 @@ class DiffSequenceTest(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(list, [diffs[0]])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
     def test_context_limit_is_adjustable(self):
         seq1 = [2, 3, 4]
@@ -632,6 +642,7 @@ class DiffSequenceTest(unittest.TestCase):
             expected_diff.ContextBlock(list, diffs[0:2]),
             expected_diff.ContextBlock(list, diffs[3:5])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
     def test_depth_is_adjustable(self):
         diff_obj = diff.diff_sequence([1, 2], [1, 2], depth=4)
@@ -659,6 +670,7 @@ class DiffSequenceTest(unittest.TestCase):
             expected_diff.ContextBlock(list, diffs[2:])
         ]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
     def test_single_char_edgecase_in_str(self):
         # there should be no attempt at recursively diffing the final characters
@@ -677,6 +689,7 @@ class DiffSequenceTest(unittest.TestCase):
             expected_diff.ContextBlock(str, diffs[2:4])
         ]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(seq1, diff_obj), seq2)
 
 
 class DiffSetTests(unittest.TestCase):

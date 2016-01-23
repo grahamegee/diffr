@@ -3,7 +3,9 @@ from collections import Sequence, Mapping, Set, deque, OrderedDict
 from copy import deepcopy
 
 term = Terminal()
-# FIXME: - what if the users terminal has a white bg?
+# FIXME: - what if the users terminal has a white bg? It would be nice to work
+# out what color the users terminal is at import time and choose a sensible
+# color scheme.
 insert = term.cyan
 remove = term.red
 unchanged = term.white
@@ -671,19 +673,28 @@ def validate_mapping_change(values):
 
 
 def patch_mapping(obj, diff):
+    # ordered mapping needs a separate function. you can end up moving a
+    # key value pair to a different position which may give you an insert
+    # followed by a remove, as it stands this would cause patch to actually
+    # remove it completely!
     patched = deepcopy(obj)
+    key_inserts = []
     for map_item in diff.diffs:
+        print(map_item)
         if map_item.state is remove:
             validate_mapping_removal(
                 lambda: (map_item.value, patched[map_item.key]))
-            del patched[map_item.key]
+            if map_item.key not in key_inserts:
+                del patched[map_item.key]
         elif map_item.state is insert:
+            key_inserts.append(map_item.key)
             patched[map_item.key] = map_item.value
         elif map_item.state is changed:
             assert(type(map_item.value) == Diff)
             validate_mapping_change(
                 lambda: (map_item.value, patched[map_item.key]))
             patched[map_item.key] = patch(obj[map_item.key], map_item.value)
+        print(patched)
     return patched
 
 
