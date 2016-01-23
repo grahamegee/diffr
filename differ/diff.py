@@ -627,6 +627,13 @@ def validate_change(item, diff_item):
         raise ValueError('Diff not compatible with patch target')
 
 
+def object_constructor(obj):
+    if type(obj) is str:
+        return lambda x: str(x)
+    else:
+        return lambda x: type(obj)((x,))
+
+
 def patch_sequence(obj, diff):
     patched = deepcopy(obj)
     offset = 0
@@ -640,7 +647,7 @@ def patch_sequence(obj, diff):
             validate_insertion(start + offset, end + offset, patched)
             patched = (
                 patched[:start + offset] +
-                type(obj)(diff_item.item) +
+                object_constructor(obj)(diff_item.item) +
                 patched[end + offset:])
             offset += 1
         elif diff_item.state is changed:
@@ -648,7 +655,7 @@ def patch_sequence(obj, diff):
             validate_change(obj[start], diff_item)
             patched = (
                 patched[:start + offset] +
-                type(obj)([patch(obj[start], diff_item.item)]) +
+                object_constructor(obj)(patch(obj[start], diff_item.item)) +
                 patched[end + offset:])
     return patched
 
