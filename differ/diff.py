@@ -685,23 +685,18 @@ def patch_mapping(obj, diff):
     # followed by a remove, as it stands this would cause patch to actually
     # remove it completely!
     patched = deepcopy(obj)
-    key_inserts = []
     for map_item in diff.diffs:
-        print(map_item)
         if map_item.state is remove:
             validate_mapping_removal(
                 lambda: (map_item.value, patched[map_item.key]))
-            if map_item.key not in key_inserts:
-                del patched[map_item.key]
+            del patched[map_item.key]
         elif map_item.state is insert:
-            key_inserts.append(map_item.key)
             patched[map_item.key] = map_item.value
         elif map_item.state is changed:
             assert(type(map_item.value) == Diff)
             validate_mapping_change(
                 lambda: (map_item.value, patched[map_item.key]))
             patched[map_item.key] = patch(obj[map_item.key], map_item.value)
-        print(patched)
     return patched
 
 

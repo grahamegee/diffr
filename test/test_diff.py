@@ -771,11 +771,14 @@ class DiffMappingTests(unittest.TestCase):
             diff.MappingDiffItem(diff.unchanged, 'a', diff.unchanged, 1)]
         expected_diff = diff.Diff(dict, diffs)
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(map1, diff_obj), map1)
 
     def test_empty_diff(self):
-        diff_obj = diff.diff_mapping({}, {})
+        map1 = {}
+        diff_obj = diff.diff_mapping(map1, map1)
         expected_diff = diff.Diff(dict, [])
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(map1, diff_obj), map1)
 
     def test_mostly_removals(self):
         map1 = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
@@ -790,6 +793,7 @@ class DiffMappingTests(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(dict, diffs[0:3])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(map1, diff_obj), map2)
 
     def test_mostly_inserts(self):
         map1 = {'c': 3}
@@ -804,6 +808,7 @@ class DiffMappingTests(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(dict, diffs[1:])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(map1, diff_obj), map2)
 
     def test_common_keys_values_not_diffable(self):
         map1 = {'a': 1}
@@ -816,6 +821,7 @@ class DiffMappingTests(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(dict, diffs)]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(map1, diff_obj), map2)
 
     def test_common_keys_values_different_types(self):
         map1 = {'a': (1, 2)}
@@ -828,6 +834,7 @@ class DiffMappingTests(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(dict, diffs)]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(map1, diff_obj), map2)
 
     def test_common_keys_recursive_diff(self):
         map1 = {'a': {'b': 1}}
@@ -846,6 +853,7 @@ class DiffMappingTests(unittest.TestCase):
         expected_diff.context_blocks = [
             expected_diff.ContextBlock(dict, diffs)]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(map1, diff_obj), map2)
 
     def test_context_limit_is_adjustable(self):
         map1 = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
@@ -863,6 +871,7 @@ class DiffMappingTests(unittest.TestCase):
             expected_diff.ContextBlock(dict, diffs[:3]),
             expected_diff.ContextBlock(dict, diffs[5:])]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(map1, diff_obj), map2)
 
     def test_depth_is_adjustable(self):
         diff_obj = diff.diff_mapping({'a': 1}, {'b': 2}, _depth=2)
@@ -888,6 +897,7 @@ class DiffMappingTests(unittest.TestCase):
             expected_diff.ContextBlock(dict, diffs)
         ]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(map1, diff_obj), map2)
 
 
 class DiffOrderedMapping(unittest.TestCase):
