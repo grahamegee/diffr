@@ -594,6 +594,8 @@ def patch(obj, diff):
         return patch_sequence(obj, diff)
     elif isinstance(obj, Set):
         return patch_set(obj, diff)
+    elif isinstance(obj, OrderedDict):
+        return patch_ordered_mapping(obj, diff)
     elif isinstance(obj, Mapping):
         return patch_mapping(obj, diff)
     else:
@@ -704,6 +706,26 @@ def patch_mapping(obj, diff):
                 lambda: (map_item.value, patched[map_item.key]))
             patched[map_item.key] = patch(obj[map_item.key], map_item.value)
     return patched
+
+
+def patch_ordered_mapping(obj, diff):
+    patched_items = []
+    for map_item in diff.diffs:
+        if map_item.state is remove:
+            validate_mapping_removal(
+                lambda: (map_item.value, obj[map_item.key]))
+        elif map_item.state is unchanged:
+            patched_items.append((map_item.key, map_item.value))
+        elif map_item.state is changed:
+            assert(type(map_item.value) == Diff)
+            validate_mapping_change(
+                lambda: (map_item.value, obj[map_item.key]))
+            patched_items.append(
+                (map_item.key, patch(obj[map_item.key], map_item.value)))
+        else:
+            assert(map_item.state is insert)
+            patched_items.append((map_item.key, map_item.value))
+    return type(obj)(patched_items)
 
 
 def patch_set(obj, diff):

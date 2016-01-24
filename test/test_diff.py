@@ -909,24 +909,27 @@ class DiffMappingTests(unittest.TestCase):
 class DiffOrderedMapping(unittest.TestCase):
     def test_no_difference(self):
         d1 = {'a': 1}
-        diff_obj = diff.diff_ordered_mapping(OrderedDict(d1), OrderedDict(d1))
+        od = OrderedDict(d1)
+        diff_obj = diff.diff_ordered_mapping(od, od)
         diffs = [
             diff.MappingDiffItem(diff.unchanged, 'a', diff.unchanged, 1)]
         expected_diff = diff.Diff(OrderedDict, diffs)
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(od, diff_obj), od)
 
     def test_empty_diff(self):
-        diff_obj = diff.diff_ordered_mapping(OrderedDict({}), OrderedDict({}))
+        od = OrderedDict()
+        diff_obj = diff.diff_ordered_mapping(od, od)
         expected_diff = diff.Diff(OrderedDict, [])
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(od, diff_obj), od)
 
     def test_common_keys_values_not_diffable(self):
         d1 = {'a': 1, 'b': 2, 'c': 3}
         d2 = {'a': 1, 'b': 3, 'c': 3}
-        diff_obj = diff.diff_ordered_mapping(
-            OrderedDict(sorted(d1.items(), key=lambda i: i[0])),
-            OrderedDict(sorted(d2.items(), key=lambda i: i[0]))
-        )
+        od1 = OrderedDict(sorted(d1.items(), key=lambda i: i[0]))
+        od2 = OrderedDict(sorted(d2.items(), key=lambda i: i[0]))
+        diff_obj = diff.diff_ordered_mapping(od1, od2)
         diffs = [
             diff.MappingDiffItem(diff.unchanged, 'a', diff.unchanged, 1),
             diff.MappingDiffItem(diff.unchanged, 'b', diff.remove, 2),
@@ -938,14 +941,14 @@ class DiffOrderedMapping(unittest.TestCase):
             expected_diff.ContextBlock(OrderedDict, diffs[1:3])
         ]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(od1, diff_obj), od2)
 
     def test_common_keys_values_different_types(self):
         d1 = {'a': 1, 'b': ['a'], 'c': 3}
         d2 = {'a': 1, 'b': 'a', 'c': 3}
-        diff_obj = diff.diff_ordered_mapping(
-            OrderedDict(sorted(d1.items(), key=lambda i: i[0])),
-            OrderedDict(sorted(d2.items(), key=lambda i: i[0]))
-        )
+        od1 = OrderedDict(sorted(d1.items(), key=lambda i: i[0]))
+        od2 = OrderedDict(sorted(d2.items(), key=lambda i: i[0]))
+        diff_obj = diff.diff_ordered_mapping(od1, od2)
         diffs = [
             diff.MappingDiffItem(diff.unchanged, 'a', diff.unchanged, 1),
             diff.MappingDiffItem(diff.unchanged, 'b', diff.remove, ['a']),
@@ -957,6 +960,7 @@ class DiffOrderedMapping(unittest.TestCase):
             expected_diff.ContextBlock(OrderedDict, diffs[1:3])
         ]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(od1, diff_obj), od2)
 
     def test_common_keys_diff_order_matters_1(self):
         '''
@@ -991,6 +995,7 @@ class DiffOrderedMapping(unittest.TestCase):
             expected_diff.ContextBlock(OrderedDict, diffs[1:])
         ]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(d1, diff_obj), d2)
 
     def test_common_keys_diff_order_matters_2(self):
         '''
@@ -1015,6 +1020,7 @@ class DiffOrderedMapping(unittest.TestCase):
             expected_diff.ContextBlock(OrderedDict, diffs[1:])
         ]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(d1, diff_obj), d2)
 
     def test_recursive_diff_when_different_lengths(self):
         '''
@@ -1045,6 +1051,7 @@ class DiffOrderedMapping(unittest.TestCase):
             expected_diff.ContextBlock(OrderedDict, diffs[1:])
         ]
         self.assertEqual(diff_obj, expected_diff)
+        self.assertEqual(diff.patch(d1, diff_obj), d2)
 
 
 class DiffFunctionTests(unittest.TestCase):
