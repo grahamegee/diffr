@@ -588,6 +588,8 @@ def diff(from_, to, context_limit=3, _depth=0):
 def patch(obj, diff):
     if type(obj) != diff.type:
         raise TypeError
+    elif isinstance(obj, Sequence) and hasattr(obj, '_make'):  # FIXME: ugh :(
+        return patch_named_tuple(obj, diff)
     elif isinstance(obj, Sequence):
         return patch_sequence(obj, diff)
     elif isinstance(obj, Set):
@@ -658,6 +660,10 @@ def patch_sequence(obj, diff):
                 object_constructor(obj)(patch(obj[start], diff_item.item)) +
                 patched[end + offset:])
     return patched
+
+
+def patch_named_tuple(obj, diff):
+    return type(obj)._make(patch_sequence(tuple(obj), diff))
 
 
 def try_get_values(values):
