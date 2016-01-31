@@ -84,6 +84,19 @@ def patch_sequence(obj, diff):
     return patched
 
 
+# namedtuple provides you with a class that inherits from Sequence, but you
+# could also legitimately treat a namedtuple as a Mapping. My choice has been to
+# treat it like a sequence in the context of diff and patch. This might be a
+# source of contention. Take for example:
+#    Point = namedtuple('Point', ('x', 'y'))
+#    a = Point(1,2), b = Point(2,3)
+#    you treat Point as a mapping and say:
+#        diff(a,b) = d.x = -1, +2
+#                    d.y = -2, +3
+#    Or treat Point as a Sequence (which is what it actually inherits from):
+#        diff(a,b) = -1, 2, +3
+#    Treating as a Sequence gives you a minimal edit and in my opinion is the
+#    correct way to go considering that Point is a subclass of Sequence.
 def patch_named_tuple(obj, diff):
     return type(obj)._make(patch_sequence(tuple(obj), diff))
 
