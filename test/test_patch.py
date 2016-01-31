@@ -26,6 +26,55 @@ class PatchSequenceTests(unittest.TestCase):
         self.assertEqual(patch_sequence(a, d), b)
         self.assertEqual(a, copy_of_a)
 
+    def test_removal_does_not_match(self):
+        a = 'abcd'
+        b = 'bcd'
+        c = 'bcd'
+        d = diff(a, b)
+        self.assertRaises(ValueError, patch_sequence, c, d)
+
+    def test_removal_does_not_exist(self):
+        a = 'abcd'
+        b = 'abc'
+        c = 'abc'
+        d = diff(a, b)
+        self.assertRaises(IndexError, patch_sequence, c, d)
+
+    def test_change_is_wrong_type(self):
+        a = (1, 'abc')
+        b = (1, '123')
+        c = (1, ['abc'])
+        d = diff(a, b)
+        self.assertRaises(TypeError, patch_sequence, c, d)
+
+    def test_change_does_not_exist(self):
+        a = (1, 'abc')
+        b = (1, '123')
+        c = (1,)
+        d = diff(a, b)
+        self.assertRaises(IndexError, patch_sequence, c, d)
+
+    def test_insert_out_of_range(self):
+        a = [1, 2, 3]
+        b = [1, 2, 3, 4]
+        c = [2, 3]
+        d = diff(a, b)
+        self.assertRaises(IndexError, patch_sequence, c, d)
+
+    def test_can_apply_patch_to_different_object(self):
+        a = [0, 1, 2, 3]
+        b = [1, 2, 3, 4]
+        c = [0, 2, 2, 2]
+        d = diff(a, b)
+        self.assertEqual(patch_sequence(c, d), [2, 2, 2, 4])
+
+    def test_another_different_object_case(self):
+        a = [0, 0, 0]
+        b = [0, 1, 0, 1, 0]
+        c = [2, 2, 2]
+        d = diff(a, b)
+        self.assertEqual(patch_sequence(c, d), [2, 1, 2, 1, 2])
+
 
 class PatchNamedTupleTests(unittest.TestCase):
     def test_patch_has_no_side_effects(self):
@@ -47,6 +96,41 @@ class PatchMappingTests(unittest.TestCase):
         self.assertEqual(patch_mapping(a, d), b)
         self.assertEqual(a, copy_of_a)
 
+    def test_removal_does_not_exist(self):
+        a = {'a': 1}
+        b = {'b': 1}
+        c = {'b': 1}
+        d = diff(a, b)
+        self.assertRaises(KeyError, patch_mapping, c, d)
+
+    def test_removal_does_not_match(self):
+        a = {'a': 1}
+        b = {'b': 1}
+        c = {'a': 2}
+        d = diff(a, b)
+        self.assertRaises(ValueError, patch_mapping, c, d)
+
+    def test_change_does_not_exist(self):
+        a = {'a': 1}
+        b = {'a': 2}
+        c = {'b': 1}
+        d = diff(a, b)
+        self.assertRaises(KeyError, patch_mapping, c, d)
+
+    def test_change_does_not_match(self):
+        a = {'a': 'a'}
+        b = {'a': 'b'}
+        c = {'a': 1}
+        d = diff(a, b)
+        self.assertRaises(TypeError, patch_mapping, c, d)
+
+    def test_unchanged_items_make_no_difference(self):
+        a = {'a': 'a'}
+        b = {'a': 'b'}
+        c = {'a': 'a', 'b': 1, 'c': (3, 4)}
+        d = diff(a, b)
+        self.assertEqual(patch_mapping(c, d), {'a': 'b', 'b': 1, 'c': (3, 4)})
+
 
 class PatchOrderedMappingTests(unittest.TestCase):
     def test_patch_has_no_side_effects(self):
@@ -66,6 +150,13 @@ class PatchSetTests(unittest.TestCase):
         d = diff(a, b)
         self.assertEqual(patch_set(a, d), b)
         self.assertEqual(a, copy_of_a)
+
+    def test_removals_dont_exist(self):
+        a = {1, 2, 3}
+        b = {1, 3, 4}
+        c = {1, 3}
+        d = diff(a, b)
+        self.assertRaises(ValueError, patch_set, c, d)
 
 
 class PatchTests(unittest.TestCase):

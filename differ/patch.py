@@ -25,13 +25,19 @@ def patch(obj, diff):
             'No mechanism for patching objects of type ({})'.format(type(obj)))
 
 
-def validate_removal(item, diff_item):
+def validate_removal(items):
     '''
     Items subject to removal must exist in the target object at the specific
     index.
     '''
+    try:
+        item, diff_item = items()
+    except IndexError:
+        raise IndexError(
+            'Item subject to removal does not exist in patch target')
     if item != diff_item.item:
-        raise ValueError('Diff not compatible with patch target')
+        raise ValueError(
+            'Item subject to removal does not match item in patch target')
 
 
 def validate_insertion(start, end, patched_obj):
@@ -42,16 +48,22 @@ def validate_insertion(start, end, patched_obj):
     '''
     assert(start == end)
     if not (0 <= start <= len(patched_obj)):
-        raise ValueError('Diff not compatible with patch target')
+        raise IndexError('Item out of range in patch target')
 
 
-def validate_change(item, diff_item):
+def validate_change(items):
     '''
     Items subject to change must exist in the target object and must be of the
     correct type
     '''
-    if not(item) or (not type(item) == diff_item.item.type):
-        raise ValueError('Diff not compatible with patch target')
+    try:
+        item, diff_item = items()
+    except IndexError:
+        raise IndexError(
+            'Item subject for change does not exist in patch target')
+    if not type(item) == diff_item.item.type:
+        raise TypeError(
+            'Item subject for change is the wrong type in patch target')
 
 
 def object_constructor(obj):
@@ -67,7 +79,7 @@ def patch_sequence(obj, diff):
     for diff_item in diff.diffs:
         start, end, _, _ = diff_item.context
         if diff_item.state is remove:
-            validate_removal(obj[start], diff_item)
+            validate_removal(lambda: (obj[start], diff_item))
             patched = patched[:start + offset] + patched[end + offset:]
             offset -= 1
         elif diff_item.state is insert:
@@ -79,7 +91,7 @@ def patch_sequence(obj, diff):
             offset += 1
         elif diff_item.state is changed:
             assert(type(diff_item.item) == Diff)
-            validate_change(obj[start], diff_item)
+            validate_change(lambda: (obj[start], diff_item))
             patched = (
                 patched[:start + offset] +
                 object_constructor(obj)(patch(obj[start], diff_item.item)) +
@@ -107,20 +119,25 @@ def patch_named_tuple(obj, diff):
 def try_get_values(values):
     try:
         return values()
-    except KeyError:
-        raise ValueError('Diff not compatible with patch target')
+    except KeyError as e:
+        raise KeyError(
+            'Key {} does not exist in patch target'.format(e))
 
 
 def validate_mapping_removal(values):
     removal_val, original_val = try_get_values(values)
     if removal_val != original_val:
-        raise ValueError('Diff not compatible with patch target')
+        raise ValueError(
+            'Value subject to removal does not match the value in patch target')
 
 
 def validate_mapping_change(values):
     removal_val, original_val = try_get_values(values)
     if type(original_val) != removal_val.type:
-        raise ValueError('Diff not compatible with patch target')
+        raise TypeError(
+            ('Type of value subject to change does not match '
+             'that in patch target')
+        )
 
 
 def patch_mapping(obj, diff):
@@ -167,6 +184,7 @@ def patch_ordered_mapping(obj, diff):
 def patch_set(obj, diff):
     removals = set([di.item for di in diff.diffs if di.state is remove])
     if removals.intersection(obj) != removals:
-        raise ValueError('Diff not compatible with patch target')
+        raise ValueError(
+            'Some items subject to removal do not exist in patch target')
     inserts = set([di.item for di in diff.diffs if di.state is insert])
     return type(obj)(obj.difference(removals).union(inserts))
