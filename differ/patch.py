@@ -7,7 +7,9 @@ from differ.data_model import (
 
 def patch(obj, diff):
     if type(obj) != diff.type:
-        raise TypeError
+        raise TypeError(
+            'Patch target type ({}) does not match diff type ({})'.format(
+                type(obj), diff.type))
     elif isinstance(obj, Sequence) and hasattr(obj, '_make'):  # FIXME: ugh :(
         return patch_named_tuple(obj, diff)
     elif isinstance(obj, Sequence):
@@ -19,7 +21,8 @@ def patch(obj, diff):
     elif isinstance(obj, Mapping):
         return patch_mapping(obj, diff)
     else:
-        raise TypeError
+        raise TypeError(
+            'No mechanism for patching objects of type ({})'.format(type(obj)))
 
 
 def validate_removal(item, diff_item):

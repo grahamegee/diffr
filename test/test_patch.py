@@ -23,7 +23,7 @@ class PatchSequenceTests(unittest.TestCase):
         copy_of_a = deepcopy(a)
         b = [3, 2, 1]
         d = diff(a, b)
-        self.assertEqual(patch(a, d), b)
+        self.assertEqual(patch_sequence(a, d), b)
         self.assertEqual(a, copy_of_a)
 
 
@@ -34,25 +34,59 @@ class PatchNamedTupleTests(unittest.TestCase):
         copy_of_a = deepcopy(a)
         b = ThreeDPoint(2, 3, 4)
         d = diff(a, b)
-        self.assertEqual(patch(a, d), b)
+        self.assertEqual(patch_named_tuple(a, d), b)
         self.assertEqual(a, copy_of_a)
 
 
 class PatchMappingTests(unittest.TestCase):
     def test_patch_has_no_side_effects(self):
-        pass
+        a = {'a': 1}
+        copy_of_a = deepcopy(a)
+        b = {'a': 2}
+        d = diff(a, b)
+        self.assertEqual(patch_mapping(a, d), b)
+        self.assertEqual(a, copy_of_a)
 
 
 class PatchOrderedMappingTests(unittest.TestCase):
     def test_patch_has_no_side_effects(self):
-        pass
+        a = OrderedDict({'a': 1})
+        copy_of_a = deepcopy(a)
+        b = OrderedDict({'a': 2})
+        d = diff(a, b)
+        self.assertEqual(patch_ordered_mapping(a, d), b)
+        self.assertEqual(a, copy_of_a)
 
 
 class PatchSetTests(unittest.TestCase):
     def test_patch_has_no_side_effects(self):
-        pass
+        a = {1, 2, 3}
+        copy_of_a = deepcopy(a)
+        b = {1, 3, 4}
+        d = diff(a, b)
+        self.assertEqual(patch_set(a, d), b)
+        self.assertEqual(a, copy_of_a)
 
 
 class PatchTests(unittest.TestCase):
-    def test_patch_has_no_side_effects(self):
-        pass
+    def test_patch_failure_different_types(self):
+        Point = namedtuple('Point', ['x', 'y', 'z'])
+        ThreeDPoint = namedtuple('ThreeDPoint', ['x', 'y', 'z'])
+        a = Point(0, 1, 1)
+        b = Point(0, 1, 2)
+        c = ThreeDPoint(0, 1, 1)
+        d = diff(a, b)
+        # FIXME:
+        # try as i might I could not get asserRaisesRegexp to actually work. I
+        # even used diff to check that my expected error message was correct,
+        # it still thought the messages differed. Oh well... the fact that the
+        # error is raised is more important than the message.
+        self.assertRaises(TypeError, patch, c, d)
+
+    def test_patch_failure_unpatchable_type(self):
+        a = [1]
+        b = [2]
+        c = 1
+        d = diff(a, b)
+        d.type = int
+        self.assertRaises(TypeError, patch, c, d)
