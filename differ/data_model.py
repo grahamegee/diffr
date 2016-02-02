@@ -108,8 +108,7 @@ class Diff(object):
             return (
                 self.type == other.type and
                 diffs_are_equal(self, other) and
-                self.context == other.context and
-                self.depth == other.depth)
+                self.context == other.context)
 
         def __ne__(self, other):
             return not self == other
@@ -170,7 +169,6 @@ class Diff(object):
             self.type == other.type,
             diffs_are_equal(self, other),
             self.context_blocks == other.context_blocks,
-            self.depth == other.depth,
             self.context_limit == other.context_limit)
         context_blocks = 2
         if is_ordered(self.type):

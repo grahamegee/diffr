@@ -149,40 +149,36 @@ class DiffTests(unittest.TestCase):
 
 
 class DiffComparisonTests(unittest.TestCase):
-    bdiffs = [
-        DiffItem(insert, 1),
-        DiffItem(unchanged, 2),
-        DiffItem(unchanged, 2),
-        DiffItem(remove, 3)
-    ]
-    base_diff = Diff(list, bdiffs, context_limit=1, depth=0)
-    base_diff.create_context_blocks()
-    ediffs = [
-        DiffItem(insert, 1),
-        DiffItem(unchanged, 2),
-        DiffItem(unchanged, 2),
-        DiffItem(remove, 3)
-    ]
-    expected_diff = Diff(list, ediffs, context_limit=1, depth=0)
-    expected_diff.create_context_blocks()
+    def setUp(self):
+        diffs = [
+            DiffItem(insert, 1),
+            DiffItem(unchanged, 2),
+            DiffItem(unchanged, 2),
+            DiffItem(remove, 3)
+        ]
+        self.base_diff = Diff(list, diffs, context_limit=1, depth=0)
+        self.base_diff.create_context_blocks()
+        self.expected_diff = Diff(list, diffs, context_limit=1, depth=0)
+        self.expected_diff.create_context_blocks()
 
     def test_diffs_compare_equal(self):
         self.assertEqual(self.base_diff, self.expected_diff)
 
     def test_diffs_differ_by_type(self):
-        self.expected_type = tuple
+        self.expected_diff.type = tuple
         self.assertNotEqual(self.base_diff, self.expected_diff)
 
     def test_diffs_differ_by_context_limit(self):
-        self.expected_diff.context_limit = 0
+        self.expected_diff.context_limit = 2
         self.assertNotEqual(self.base_diff, self.expected_diff)
 
-    def test_diffs_differ_by_depth(self):
-        self.expected_depth = 1
-        self.assertNotEqual(self.base_diff, self.expected_diff)
+    def test_diffs_with_different_depths_compare_equal(self):
+        d1 = diff([1, 2, 3], [2, 3])
+        d2 = diff({'a': [1, 2, 3]}, {'a': [2, 3]})
+        self.assertEqual(d1, d2.diffs[0].value)
 
     def test_diffs_differ_by_diffs(self):
-        self.diffs = []
+        self.expected_diff.diffs = []
         self.assertNotEqual(self.base_diff, self.expected_diff)
 
     def test_diffs_differ_by_context_blocks(self):
@@ -231,7 +227,7 @@ class DiffContextBlockTests(unittest.TestCase):
         different_context_block = Diff(
             list, self.base_context_diffs).ContextBlock(
                 list, self.base_context_diffs, depth=1)
-        self.assertNotEqual(
+        self.assertEqual(
             self.base_context_block, different_context_block)
 
 
