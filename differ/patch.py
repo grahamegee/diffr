@@ -174,7 +174,7 @@ def validate_ordered_mapping_change(items):
 
 def patch_ordered_mapping(obj, diff):
     # treated pretty much in the same way as a sequence.
-    patched_items = list(deepcopy(obj.items()))
+    patched_items = list(obj.items())
     offset = 0
     for i, diff_item in enumerate(diff.diffs):
         if diff_item.state is remove:
