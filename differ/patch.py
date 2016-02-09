@@ -44,7 +44,7 @@ def validate_insertion(start, end, patched_obj):
     '''
     Insertions can only happen just before the beginning of the sequence, just
     after the end of the sequence, or somewhere in the middle of the sequence.
-    so basically anywhere then you fucking muppet?!..
+    i.e. it must be in bounds.
     '''
     assert(start == end)
     if not (0 <= start <= len(patched_obj)):
@@ -161,23 +161,47 @@ def patch_mapping(obj, diff):
     return patched
 
 
+def validate_ordered_mapping_change(items):
+    try:
+        item, diff_item = items()
+    except IndexError:
+        raise IndexError(
+            'Item subject for change does not exist in patch target')
+    if not type(item[1]) == diff_item.value.type:
+        raise TypeError(
+            'Item subject for change is the wrong type in patch target')
+
+
 def patch_ordered_mapping(obj, diff):
-    patched_items = []
-    for map_item in diff.diffs:
-        if map_item.state is remove:
-            validate_mapping_removal(
-                lambda: (map_item.value, obj[map_item.key]))
-        elif map_item.state is unchanged:
-            patched_items.append((map_item.key, map_item.value))
-        elif map_item.state is changed:
-            assert(type(map_item.value) == Diff)
-            validate_mapping_change(
-                lambda: (map_item.value, obj[map_item.key]))
-            patched_items.append(
-                (map_item.key, patch(obj[map_item.key], map_item.value)))
-        else:
-            assert(map_item.state is insert)
-            patched_items.append((map_item.key, map_item.value))
+    # treated pretty much in the same way as a sequence.
+    patched_items = list(deepcopy(obj.items()))
+    offset = 0
+    for i, diff_item in enumerate(diff.diffs):
+        if diff_item.state is remove:
+            validate_removal(lambda: (patched_items[i + offset], diff_item))
+            patched_items = (
+                patched_items[:i + offset] +
+                patched_items[i + 1 + offset:]
+            )
+            offset -= 1
+        elif diff_item.state is insert:
+            validate_insertion(i + offset, i + offset, patched_items)
+            patched_items = (
+                patched_items[:i + offset] +
+                [diff_item.item] +
+                patched_items[i + offset:]
+            )
+        elif diff_item.state is changed:
+            validate_ordered_mapping_change(
+                lambda: (patched_items[i + offset], diff_item))
+            patched_items = (
+                patched_items[:i + offset] +
+                [(
+                    diff_item.key,
+                    patch(patched_items[i + offset][1], diff_item.value)
+                )] +
+                patched_items[i + 1 + offset:]
+            )
     return type(obj)(patched_items)
 
 

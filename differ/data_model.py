@@ -233,6 +233,7 @@ class MappingDiffItem(DiffItem):
         self.key = key
         self.state = value_state
         self.value = value
+        self.item = (key, value)
 
     def __str__(self):
         key_repr = '{!s}: '.format(self.key)

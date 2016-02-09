@@ -793,7 +793,6 @@ class DiffFunctionTests(unittest.TestCase):
         od1 = OrderedDict(sorted(d1.items(), key=lambda i: i[1]))
         od2 = OrderedDict(sorted(d2.items(), key=lambda i: i[1]))
         diff_obj = diff(od1, od2)
-        print(diff_obj.type)
         diffs = [
             MappingDiffItem(unchanged, 'd', unchanged, 1),
             MappingDiffItem(unchanged, 'c', unchanged, 2),

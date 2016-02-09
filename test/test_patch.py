@@ -141,6 +141,16 @@ class PatchOrderedMappingTests(unittest.TestCase):
         self.assertEqual(patch_ordered_mapping(a, d), b)
         self.assertEqual(a, copy_of_a)
 
+    def test_patch_different_target(self):
+        a = OrderedDict((('a', 1), ('b', 2), ('c', 3), ('d', 4)))
+        b = OrderedDict((('b', 2), ('a', 1), ('c', 3), ('d', 4)))
+        d = diff(a, b)
+        c = OrderedDict((('a', 1), ('b', 2), ('e', 9), ('f', 10)))
+        self.assertEqual(
+            patch(c, d),
+            OrderedDict((('b', 2), ('a', 1), ('e', 9), ('f', 10)))
+        )
+
 
 class PatchSetTests(unittest.TestCase):
     def test_patch_has_no_side_effects(self):
