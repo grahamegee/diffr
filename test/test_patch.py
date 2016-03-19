@@ -151,6 +151,58 @@ class PatchOrderedMappingTests(unittest.TestCase):
             OrderedDict((('b', 2), ('a', 1), ('e', 9), ('f', 10)))
         )
 
+    def test_patch_change_does_not_exist_1(self):
+        a = OrderedDict((('a', 'a'), ('b', [1])))
+        b = OrderedDict((('a', 'a'), ('b', [2])))
+        d = diff(a, b)
+        c = OrderedDict((('a', 'a'),))
+        self.assertRaises(
+            ValueError,
+            patch, c, d)
+
+    def test_patch_change_does_not_exist_2(self):
+        a = OrderedDict((('a', 'a'),))
+        b = OrderedDict((('a', 'b'),))
+        d = diff(a, b)
+        c = OrderedDict((('b', 'b'),))
+        self.assertRaises(
+            KeyError,
+            patch, c, d)
+
+    def test_patch_change_wrong_type(self):
+        a = OrderedDict((('a', 'a'),))
+        b = OrderedDict((('a', 'b'),))
+        d = diff(a, b)
+        c = OrderedDict((('a', [1]),))
+        self.assertRaises(
+            TypeError,
+            patch, c, d)
+
+    def test_patch_removal_does_not_exist_1(self):
+        a = OrderedDict((('a', 1), ('b', 2)))
+        b = OrderedDict((('b', 2),))
+        d = diff(a, b)
+        self.assertRaises(
+            ValueError,
+            patch, b, d)
+
+    def test_patch_removal_does_not_exist_2(self):
+        a = OrderedDict((('a', 2),))
+        b = OrderedDict()
+        d = diff(a, b)
+        self.assertRaises(
+            IndexError,
+            patch, b, d)
+
+    def test_patch_insert_out_of_range(self):
+        a = OrderedDict((('a', 1), ('b', 2)))
+        b = OrderedDict((('a', 1), ('b', 2), ('c', 3)))
+        d = diff(a, b)
+        c = OrderedDict((('a', 1),))
+        self.assertRaises(
+            IndexError,
+            patch, c, d)
+
 
 class PatchSetTests(unittest.TestCase):
     def test_patch_has_no_side_effects(self):
