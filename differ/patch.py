@@ -37,7 +37,8 @@ def validate_removal(items):
             'Item subject to removal does not exist in patch target')
     if item != diff_item.item:
         raise ValueError(
-            'Item subject to removal does not match item in patch target')
+            'Expected item for removal {} does not match item in patch target '
+            '{}'.format(item, diff_item.item))
 
 
 def validate_insertion(start, end, patched_obj):
@@ -165,11 +166,18 @@ def validate_ordered_mapping_change(items):
     try:
         item, diff_item = items()
     except IndexError:
-        raise IndexError(
-            'Item subject for change does not exist in patch target')
-    if not type(item[1]) == diff_item.value.type:
+        # hide implementation detail. IndexError doesn't make sense for
+        # Mappings
+        raise ValueError(
+            'Item subject to change does not exist in patch target')
+    key, value = item
+    if key != diff_item.key:
+        raise KeyError(
+            'Key "{}" does not exist in patch target'.format(diff_item.key))
+    if type(value) != diff_item.value.type:
         raise TypeError(
-            'Item subject for change is the wrong type in patch target')
+            'Item subject for change should be type {} but is type {} '
+            'in patch target'.format(diff_item.value.type, type(value)))
 
 
 def patch_ordered_mapping(obj, diff):
