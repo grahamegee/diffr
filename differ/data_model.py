@@ -6,10 +6,20 @@ term = Terminal()
 # FIXME: - what if the users terminal has a white bg? It would be nice to work
 # out what color the users terminal is at import time and choose a sensible
 # color scheme.
-insert = term.cyan
+insert = term.green
 remove = term.red
 unchanged = term.white
 changed = term.yellow
+
+
+def state_to_prefix(state):
+    if state is insert:
+        prefix = '+'
+    elif state is remove:
+        prefix = '-'
+    else:
+        prefix = ' '
+    return prefix
 
 
 def is_ordered(collection):
@@ -92,17 +102,36 @@ class Diff(object):
                     self._indent * self.depth + '@@ {}{},{} {}{},{} @@'.format(
                         remove('-'), remove(f_s), remove(f_e),
                         insert('+'), insert(t_s), insert(t_e)))
-            for item in self.diffs:
-                if item.state is insert:
-                    prefix = '+'
-                elif item.state is remove:
-                    prefix = '-'
+            if self.type is str:
+                return '\n'.join(self._make_string_diff_output(output))
+            else:
+                return '\n'.join(self._make_diff_output(output))
+
+        def _make_string_diff_output(self, output):
+            diff_output = []
+            line_start = self._indent * self.depth + ' '
+            states = items = line_start
+            for i, item in enumerate(self.diffs):
+                states += item.state(state_to_prefix(item.state))
+                items += str(item)
+                if (len(line_start) + i) % 80:
+                    line_in_progress = True
                 else:
-                    prefix = ' '
+                    diff_output.extend([states, items])
+                    states = items = line_start
+                    line_in_progress = False
+            if line_in_progress:
+                diff_output.extend([states, items])
+            output.extend(diff_output)
+            return output
+
+        def _make_diff_output(self, output):
+            for item in self.diffs:
+                prefix = state_to_prefix(item.state)
                 output.append(
                     self._indent * self.depth +
                     '{} {}'.format(item.state(prefix), item))
-            return '\n'.join(output)
+            return output
 
         def __eq__(self, other):
             return (
