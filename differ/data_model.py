@@ -8,7 +8,7 @@ term = Terminal()
 # color scheme.
 insert = term.green
 remove = term.red
-unchanged = term.white
+unchanged = lambda string: term.normal + string
 changed = term.yellow
 
 
@@ -114,7 +114,7 @@ class Diff(object):
             for i, item in enumerate(self.diffs):
                 states += item.state(state_to_prefix(item.state))
                 items += str(item)
-                if (len(line_start) + i) % 80:
+                if (len(line_start) + i) % (term.width - 1):
                     line_in_progress = True
                 else:
                     diff_output.extend([states, items])
