@@ -1,7 +1,7 @@
 import sys
 import unittest
 from collections import OrderedDict, namedtuple, deque
-from differ.data_model import Diff, DiffItem, MappingDiffItem
+from differ.data_model import Diff, DiffItem, MappingDiffItem, term
 from differ.patch import patch
 from differ.diff import (
     _backtrack, _build_lcs_matrix,
@@ -1036,3 +1036,52 @@ class DiffStringTests(unittest.TestCase):
             unchanged(')')
         ]
         self.assertEqual(diff_obj.__str__(), '\n'.join(expected_diff_output))
+
+    def test_strings_display_on_single_line(self):
+        a = 'this'
+        b = 'that'
+        d = diff(a, b)
+        expected_str = [
+            unchanged('{!s}('.format(type(a))),
+            '@@ {}{},{} {}{},{} @@'.format(
+                remove('-'), remove('2'), remove('4'),
+                insert('+'), insert('2'), insert('4')),
+            ' {}{}{}{}'.format(
+                remove('-'), remove('-'), insert('+'), insert('+')),
+            ' {}{}{}{}'.format(
+                remove('i'), remove('s'), insert('a'), insert('t')),
+            unchanged(')')
+        ]
+        self.assertEqual(d.__str__(), '\n'.join(expected_str))
+
+    def test_string_diff_wraps_after_term_width(self):
+        a = ''
+        b = 'a' * term.width
+        d = diff(a, b)
+        expected_str = [
+            unchanged('{!s}('.format(type(a))),
+            '@@ {}{},{} {}{},{} @@'.format(
+                remove('-'), remove('0'), remove('0'),
+                insert('+'), insert('0'), insert('{}'.format(term.width))),
+            ' ' + ('{}'.format(insert('+')) * (term.width - 1)),
+            ' ' + ('{}'.format(insert('a')) * (term.width - 1)),
+            ' {}'.format(insert('+')),
+            ' {}'.format(insert('a')),
+            unchanged(')')
+        ]
+        self.assertEqual(d.__str__(), '\n'.join(expected_str))
+
+    def test_string_is_term_width(self):
+        a = ''
+        b = 'a' * (term.width - 1)
+        d = diff(a, b)
+        expected_str = [
+            unchanged('{!s}('.format(type(a))),
+            '@@ {}{},{} {}{},{} @@'.format(
+                remove('-'), remove('0'), remove('0'),
+                insert('+'), insert('0'), insert('{}'.format(term.width - 1))),
+            ' ' + ('{}'.format(insert('+')) * (term.width - 1)),
+            ' ' + ('{}'.format(insert('a')) * (term.width - 1)),
+            unchanged(')')
+        ]
+        self.assertEqual(d.__str__(), '\n'.join(expected_str))
