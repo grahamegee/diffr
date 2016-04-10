@@ -5,7 +5,7 @@ d = Diff(
     [DiffItem(remove, 'a'), DiffItem(unchanged, 'b'), DiffItem(insert, 'c')]
 )
 print(d)
-
+# the diff of 'hi' and 'hello'
 d = Diff(
     str,
     [
@@ -18,4 +18,5 @@ d = Diff(
     ]
 )
 print(d)
+# patching 'hi' with this diff should produce 'hello'
 print(patch('hi', d))
