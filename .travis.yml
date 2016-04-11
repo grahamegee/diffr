@@ -9,6 +9,6 @@ install:
     - pip install .
     - pip install coveralls
 script: 
-    nosetests --with-coverage --cover-package=differ --cover-branches
+    nosetests --with-coverage --cover-package=diffr --cover-branches
 after_success:
     coveralls
