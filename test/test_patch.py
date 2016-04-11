@@ -8,8 +8,8 @@
 import unittest
 from collections import namedtuple, OrderedDict
 from copy import deepcopy
-from differ import diff, patch
-from differ.patch import (
+from diffr import diff, patch
+from diffr.patch import (
     patch_sequence,
     patch_named_tuple,
     patch_mapping,

@@ -1,6 +1,6 @@
 from collections import Sequence, Mapping, Set, OrderedDict
 from copy import deepcopy
-from differ.data_model import (
+from diffr.data_model import (
     remove, insert, changed, unchanged,
     Diff)
 

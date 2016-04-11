@@ -1,4 +1,4 @@
-from differ import diff, Diff, unchanged, insert, remove, changed
+from diffr import diff, Diff, unchanged, insert, remove, changed
 
 a = 'change1 same change2'
 b = 'modify1 same modify2'

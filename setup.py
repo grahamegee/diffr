@@ -1,17 +1,24 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='differ',
-    version='0.1',
-    description='Differ for Python objects',
-    classifiers=[],
-    keywords='',
+    name='diffr',
+    version='1.0',
+    description='Diff and patch Python data structures',
+    keywords=['diff', 'diffing', 'test'],
     author='Grahame Gardiner',
-    author_email='',
-    license='',
+    author_email='grahamegee@gmail.com',
+    url='https://github.com/grahamegee/differ',
+    license='MIT',
     packages=find_packages(
         exclude=['examples', 'test', 'contrib']),
-    package_data={},
     install_requires=['blessings'],
-    entry_points={},
-    scripts=[])
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
+        'Natural Language :: English',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Topic :: Software Development :: Libraries :: Python Modules',
+        'Topic :: Software Development :: Testing'
+    ])

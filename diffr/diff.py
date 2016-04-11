@@ -1,5 +1,5 @@
 from collections import Sequence, Mapping, Set, deque, OrderedDict
-from differ.data_model import(
+from diffr.data_model import(
     insert, remove, unchanged, changed,
     Diff, DiffItem, MappingDiffItem)
 

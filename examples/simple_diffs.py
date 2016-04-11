@@ -1,4 +1,4 @@
-from differ import diff
+from diffr import diff
 from collections import namedtuple, OrderedDict
 
 # lists

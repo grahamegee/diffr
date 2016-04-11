@@ -1,10 +1,10 @@
 import unittest
 from collections import OrderedDict
-from differ.data_model import (
+from diffr.data_model import (
     sequences_contain_same_items,
     diffs_are_equal,
     Diff, DiffItem, MappingDiffItem)
-from differ.diff import insert, remove, unchanged, diff
+from diffr.diff import insert, remove, unchanged, diff
 
 
 class SequencesContainSameItemsTests(unittest.TestCase):

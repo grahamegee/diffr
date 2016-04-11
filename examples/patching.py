@@ -1,4 +1,4 @@
-from differ import diff, patch
+from diffr import diff, patch
 
 a = [1, 2, 3]
 b = [2, 1, 3, 4]

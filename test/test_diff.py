@@ -1,9 +1,9 @@
 import sys
 import unittest
 from collections import OrderedDict, namedtuple, deque
-from differ.data_model import Diff, DiffItem, MappingDiffItem, term
-from differ.patch import patch
-from differ.diff import (
+from diffr.data_model import Diff, DiffItem, MappingDiffItem, term
+from diffr.patch import patch
+from diffr.diff import (
     _backtrack, _build_lcs_matrix,
     Chunk, chunker, diff_item_data_factory,
     insert, remove, changed, unchanged,

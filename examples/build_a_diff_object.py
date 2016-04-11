@@ -1,4 +1,4 @@
-from differ import unchanged, remove, insert, DiffItem, Diff, patch
+from diffr import unchanged, remove, insert, DiffItem, Diff, patch
 
 d = Diff(
     set,
