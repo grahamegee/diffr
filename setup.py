@@ -8,6 +8,7 @@ setup(
     author='Grahame Gardiner',
     author_email='grahamegee@gmail.com',
     url='https://github.com/grahamegee/differ',
+    download_url='https://github.com/grahamegee/diffr/releases/tag/1.0',
     license='MIT',
     packages=find_packages(
         exclude=['examples', 'test', 'contrib']),
