@@ -1,8 +1,8 @@
 # diffr
 
-[![Build Status](https://travis-ci.org/grahamegee/differ.svg?branch=master)](
-https://travis-ci.org/grahamegee/differ)
-[![Coverage Status](https://coveralls.io/repos/github/grahamegee/differ/badge.svg?branch=master)](https://coveralls.io/github/grahamegee/differ?branch=master)
+[![Build Status](https://travis-ci.org/grahamegee/diffr.svg?branch=master)](
+https://travis-ci.org/grahamegee/diffr)
+[![Coverage Status](https://coveralls.io/repos/github/grahamegee/diffr/badge.svg?branch=master)](https://coveralls.io/github/grahamegee/diffr?branch=master)
 
 Diff and patch python data structures.
 
