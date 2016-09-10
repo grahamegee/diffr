@@ -147,6 +147,38 @@ class DiffTests(unittest.TestCase):
         self.assertEqual(
             diff_obj.context_blocks, expected)
 
+    def test_len_diff(self):
+        self.assertEqual(len(diff([1, 2], [1, 2])), 2)
+
+    def test_diff_evaluates_false_when_empty(self):
+        self.assertFalse(bool(Diff(set, [])))
+
+    def test_diff_evaluates_true_when_contain_non_unchanged_items(self):
+        self.assertTrue(bool(diff('baaaaaaa', 'aaaaaaaa')))
+
+    def test_diff_evaluates_false_when_all_items_are_unchanged(self):
+        self.assertFalse(bool(diff({1: [1, 2]}, {1: [1, 2]})))
+
+    def test_diff_slicing(self):
+        d = diff('aabcdef', 'abcdef')
+        s = d[1:]
+        self.assertEqual(s, Diff(str, d.diffs[1:]))
+
+    def test_diff_index(self):
+        d = diff('aabcdef', 'abcdef')
+        i = 0
+        self.assertEqual(d[i], d.diffs[i])
+
+    def test_getattr_fail(self):
+        d = diff('aaa', 'bbb')
+        with self.assertRaises(TypeError):
+            d['a']
+
+    def test_iterate_over_diff(self):
+        d = diff([1, 2, 3, 4], [2, 3, 4, 5])
+        diff_items = [di for di in d]
+        self.assertEqual(tuple(diff_items), d.diffs)
+
 
 class DiffComparisonTests(unittest.TestCase):
     def setUp(self):

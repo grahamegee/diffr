@@ -1,5 +1,6 @@
 from blessings import Terminal
 from collections import Sequence, OrderedDict
+from numbers import Integral
 
 
 term = Terminal()
@@ -83,7 +84,7 @@ class Diff(object):
         '''
         def __init__(self, obj_type, diffs, depth=0):
             self.type = obj_type
-            self.diffs = diffs
+            self.diffs = tuple(diffs)
             self._indent = ' '*3
             self.depth = depth
             self.context = ()
@@ -144,7 +145,7 @@ class Diff(object):
 
     def __init__(self, obj_type, diffs, context_limit=3, depth=0):
         self.type = obj_type
-        self.diffs = diffs
+        self.diffs = tuple(diffs)
         self.context_blocks = []
         self.context_limit = context_limit
         self.depth = depth
@@ -192,6 +193,32 @@ class Diff(object):
         self.context_blocks = [
             self.ContextBlock(self.type, self.diffs[start:end], self.depth)
             for start, end in self._create_context_markers()]
+
+    def __len__(self):
+        return len(self.diffs)
+
+    def __bool__(self):
+        if self.diffs:
+            return any(d.state != unchanged for d in self.diffs)
+        return False
+
+    def __nonzero__(self):
+        # python 2.7
+        return self.__bool__()
+
+    def __iter__(self):
+        return iter(self.diffs)
+
+    def __getitem__(self, index):
+        cls = type(self)
+        if isinstance(index, slice):
+            return cls(
+                self.type, self.diffs[index], self.context_limit, self.depth)
+        elif isinstance(index, Integral):
+            return self.diffs[index]
+        else:
+            msg = '{.__name__} indices must be integers'
+            raise TypeError(msg.format(cls))
 
     def __eq__(self, other):
         eq = (
