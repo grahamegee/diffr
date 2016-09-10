@@ -202,6 +202,10 @@ class Diff(object):
             return any(d.state != unchanged for d in self.diffs)
         return False
 
+    def __nonzero__(self):
+        # python 2.7
+        return self.__bool__()
+
     def __iter__(self):
         return iter(self.diffs)
 
