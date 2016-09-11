@@ -143,7 +143,6 @@ class DiffTests(unittest.TestCase):
             Diff.ContextBlock(list, [diffs[0]]),
             Diff.ContextBlock(list, [diffs[3]])]
         diff_obj = Diff(list, diffs, context_limit=1)
-        diff_obj.create_context_blocks()
         self.assertEqual(
             diff_obj.context_blocks, expected)
 
@@ -189,9 +188,7 @@ class DiffComparisonTests(unittest.TestCase):
             DiffItem(remove, 3)
         ]
         self.base_diff = Diff(list, diffs, context_limit=1, depth=0)
-        self.base_diff.create_context_blocks()
         self.expected_diff = Diff(list, diffs, context_limit=1, depth=0)
-        self.expected_diff.create_context_blocks()
 
     def test_diffs_compare_equal(self):
         self.assertEqual(self.base_diff, self.expected_diff)

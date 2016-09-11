@@ -1,6 +1,7 @@
 from blessings import Terminal
 from collections import Sequence, OrderedDict
 from numbers import Integral
+from copy import copy
 
 
 term = Terminal()
@@ -70,15 +71,14 @@ class Diff(object):
     def __init__(self, obj_type, diffs, context_limit=3, depth=0):
         self.type = obj_type
         self.diffs = tuple(diffs)
-        self.context_blocks = []
+        self.context = self._extract_context()
         self.context_limit = context_limit
         self.depth = depth
-        self._indent = '   '
+        self._indent = '   ' * depth
         self.start = unchanged('{}('.format(self.type))
         self.end = unchanged(')')
 
-    @property
-    def context(self):
+    def _extract_context(self):
         if hasattr(self.diffs[0], 'context') and self.diffs[0].context:
             from_start, _, to_start, _ = self.diffs[0].context
             _, from_end, _, to_end = self.diffs[-1].context
@@ -92,20 +92,22 @@ class Diff(object):
         propogate formatting down the nested structure
         '''
         indexes = []
-        for i, diff_item in self.diffs:
+        for i, diff_item in enumerate(self):
             if diff_item.state != unchanged:
                 indexes.append(i)
-                if isinstance(diff_item.item, Diff):
-                    diff_item.item._create_context_slice_indices(context_limit)
         return indexes
 
     def _create_context_slice_indices(self, context_limit):
+        '''
+        From the indices of changed items determine and create non-overlapping
+        context slices of the Diff.
+        '''
         changed_indices = self._indices_of_changed_items(context_limit)
-        previous = changed_indices
+        previous = changed_indices[0]
         s = [previous, previous]
         slices = []
         for current in changed_indices[1:]:
-            if (previous + context_limit) >= (current - context_limit):
+            if (previous + context_limit + 1) >= (current - context_limit):
                 s[1] = current
             else:
                 slices.append(s)
@@ -113,6 +115,14 @@ class Diff(object):
                 s = [previous, previous]
         slices.append(s)
         return slices
+
+    def _create_context_slices(self, context_limit):
+        return [
+            Diff(
+                self.type,
+                self[max(0, (start - context_limit)):end + context_limit + 1],
+                self.context_limit, self.depth)
+            for start, end in self._create_context_slice_indices(context_limit)]
 
     def __len__(self):
         return len(self.diffs)
@@ -144,21 +154,37 @@ class Diff(object):
         eq = (
             self.type == other.type,
             diffs_are_equal(self, other),
-            self.context_blocks == other.context_blocks,
             self.context_limit == other.context_limit)
-        context_blocks = 2
-        if is_ordered(self.type):
-            return all(eq)
-        else:
-            return all(eq[:context_blocks] + eq[context_blocks + 1:])
+        return all(eq)
 
     def __ne__(self, other):
         return not self == other
 
+    def __format__(self, fmt_spec=''):
+        if fmt_spec.endswith('c'):
+            context_limit = int(fmt_spec[:-1])
+            slices = [
+                s for s in self._create_context_slices(context_limit)]
+
+            for s in slices:
+                for diff_item in s:
+                    if type(diff_item) == DiffItem:
+                        item = diff_item.item
+                        attr_name = 'item'
+                    else:
+                        item = diff_item.value
+                        attr_name = 'value'
+                    if type(item) == Diff:
+                        setattr(diff_item, attr_name, format(item, fmt_spec))
+
+            return '\n'.join(str(s) for s in slices)
+        else:
+            return str(self)
+
     def __str__(self):
         # display a context banner at the top if we have context, ie we are
         # diffing sequences.
-        output = []
+        output = [self._indent + self.start]
         if self.context:
             f_s, f_e, t_s, t_e = map(str, self.context)
             output.append(
@@ -166,9 +192,11 @@ class Diff(object):
                     remove('-'), remove(f_s), remove(f_e),
                     insert('+'), insert(t_s), insert(t_e)))
         if self.type is str:
-            return '\n'.join(self._make_string_diff_output(output))
+            self._make_string_diff_output(output)
         else:
-            return '\n'.join(self._make_diff_output(output))
+            self._make_diff_output(output)
+        output.append(self._indent + self.end)
+        return '\n'.join(output)
 
     def _make_string_diff_output(self, output):
         diff_output = []
