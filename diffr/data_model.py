@@ -1,7 +1,6 @@
 from blessings import Terminal
 from collections import Sequence, OrderedDict
 from numbers import Integral
-from copy import copy
 
 
 term = Terminal()
@@ -12,6 +11,18 @@ insert = term.green
 remove = term.red
 unchanged = lambda string: term.normal + string
 changed = term.yellow
+
+
+class _Window(object):
+    def __init__(self, number, context_limit):
+        left_reach = number - context_limit
+        self.number = number
+        self.left = left_reach if left_reach > 0 else 0
+        self.right = number + context_limit + 1
+
+    def __repr__(self):
+        return '{}(number={}, left={}, right={})'.format(
+            self.__class__.__name__, self.number, self.left, self.right)
 
 
 def state_to_prefix(state):
@@ -47,6 +58,45 @@ def diffs_are_equal(diff_a, diff_b):
         return sequences_contain_same_items(diff_a.diffs, diff_b.diffs)
 
 
+def _indices_of_changed_items(diff_list, context_limit):
+    '''
+    return the indexes of the insert|remove|changed DiffItems only. If a
+    DiffItem is wrapping a Diff instance call it's context slicer to
+    propogate formatting down the nested structure
+    '''
+    return [
+        _Window(i, context_limit) for i, diff_item in enumerate(diff_list)
+        if diff_item.state != unchanged]
+
+
+def _get_context_slice_indices(diff_list, context_limit):
+    '''
+    From the indices of changed items determine and create non-overlapping
+    context slices of the Diff.
+    '''
+    changed_indices = _indices_of_changed_items(diff_list, context_limit)
+    previous = changed_indices[0]
+    slices = []
+    s = [previous]
+    for current in changed_indices[1:]:
+        if previous.right >= current.left:
+            s.append(current)
+            previous = current
+        else:
+            slices.append(s)
+            previous = current
+            s = [previous]
+    if not slices or slices[-1] != s:
+        slices.append(s)
+    return [(i[0].left, i[-1].right) for i in slices]
+
+
+def context_slice(diff_list, context_limit):
+    return [
+        diff_list[start:end] for start, end in
+        _get_context_slice_indices(diff_list, context_limit)]
+
+
 class Diff(object):
     '''
     A collection of DiffItems.
@@ -71,58 +121,17 @@ class Diff(object):
     def __init__(self, obj_type, diffs, context_limit=3, depth=0):
         self.type = obj_type
         self.diffs = tuple(diffs)
-        self.context = self._extract_context()
         self.context_limit = context_limit
         self.depth = depth
         self._indent = '   ' * depth
         self.start = unchanged('{}('.format(self.type))
         self.end = unchanged(')')
 
-    def _extract_context(self):
-        if hasattr(self.diffs[0], 'context') and self.diffs[0].context:
-            from_start, _, to_start, _ = self.diffs[0].context
-            _, from_end, _, to_end = self.diffs[-1].context
+    def _extract_context(self, context_block):
+        if hasattr(context_block[0], 'context') and context_block[0].context:
+            from_start, _, to_start, _ = context_block[0].context
+            _, from_end, _, to_end = context_block[-1].context
             return (from_start, from_end, to_start, to_end)
-        return ()
-
-    def _indices_of_changed_items(self, context_limit):
-        '''
-        return the indexes of the insert|remove|changed DiffItems only. If a
-        DiffItem is wrapping a Diff instance call it's context slicer to
-        propogate formatting down the nested structure
-        '''
-        indexes = []
-        for i, diff_item in enumerate(self):
-            if diff_item.state != unchanged:
-                indexes.append(i)
-        return indexes
-
-    def _create_context_slice_indices(self, context_limit):
-        '''
-        From the indices of changed items determine and create non-overlapping
-        context slices of the Diff.
-        '''
-        changed_indices = self._indices_of_changed_items(context_limit)
-        previous = changed_indices[0]
-        s = [previous, previous]
-        slices = []
-        for current in changed_indices[1:]:
-            if (previous + context_limit + 1) >= (current - context_limit):
-                s[1] = current
-            else:
-                slices.append(s)
-                previous = current
-                s = [previous, previous]
-        slices.append(s)
-        return slices
-
-    def _create_context_slices(self, context_limit):
-        return [
-            Diff(
-                self.type,
-                self[max(0, (start - context_limit)):end + context_limit + 1],
-                self.context_limit, self.depth)
-            for start, end in self._create_context_slice_indices(context_limit)]
 
     def __len__(self):
         return len(self.diffs)
@@ -163,46 +172,45 @@ class Diff(object):
     def __format__(self, fmt_spec=''):
         if fmt_spec.endswith('c'):
             context_limit = int(fmt_spec[:-1])
-            slices = [
-                s for s in self._create_context_slices(context_limit)]
-
-            for s in slices:
-                for diff_item in s:
-                    if type(diff_item) == DiffItem:
-                        item = diff_item.item
-                        attr_name = 'item'
-                    else:
-                        item = diff_item.value
-                        attr_name = 'value'
-                    if type(item) == Diff:
-                        setattr(diff_item, attr_name, format(item, fmt_spec))
-
+            slices = [s for s in context_slice(self, context_limit)]
             return '\n'.join(str(s) for s in slices)
         else:
             return str(self)
 
+    def _make_context_banner(self, context_block):
+        context = self._extract_context(context_block)
+        if context:
+            f_s, f_e, t_s, t_e = map(str, context)
+            return self._indent + '@@ {}{},{} {}{},{} @@'.format(
+                    remove('-'), remove(f_s), remove(f_e),
+                    insert('+'), insert(t_s), insert(t_e))
+
     def __str__(self):
         # display a context banner at the top if we have context, ie we are
         # diffing sequences.
-        output = [self._indent + self.start]
-        if self.context:
-            f_s, f_e, t_s, t_e = map(str, self.context)
-            output.append(
-                self._indent * self.depth + '@@ {}{},{} {}{},{} @@'.format(
-                    remove('-'), remove(f_s), remove(f_e),
-                    insert('+'), insert(t_s), insert(t_e)))
-        if self.type is str:
-            self._make_string_diff_output(output)
+        output = [self.start]
+        if self.context_limit is not None:
+            items_to_display = context_slice(self.diffs, self.context_limit)
         else:
-            self._make_diff_output(output)
+            items_to_display = [self.diffs]
+
+        for context_block in items_to_display:
+            banner = self._make_context_banner(context_block)
+            if banner:
+                output.append(banner)
+            if self.type is str:
+                self._make_string_diff_output(output, context_block)
+            else:
+                self._make_diff_output(output, context_block)
+
         output.append(self._indent + self.end)
         return '\n'.join(output)
 
-    def _make_string_diff_output(self, output):
+    def _make_string_diff_output(self, output, context_block):
         diff_output = []
-        line_start = self._indent * self.depth + ' '
+        line_start = self._indent + ' '
         states = items = line_start
-        for i, item in enumerate(self.diffs):
+        for i, item in enumerate(context_block):
             states += item.state(state_to_prefix(item.state))
             items += str(item)
             if (len(line_start) + i) % (term.width - 1):
@@ -216,12 +224,11 @@ class Diff(object):
         output.extend(diff_output)
         return output
 
-    def _make_diff_output(self, output):
-        for item in self.diffs:
+    def _make_diff_output(self, output, context_block):
+        for item in context_block:
             prefix = state_to_prefix(item.state)
             output.append(
-                self._indent * self.depth +
-                '{} {}'.format(item.state(prefix), item))
+                self._indent + '{} {}'.format(item.state(prefix), item))
         return output
 
 
