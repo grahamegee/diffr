@@ -1,6 +1,7 @@
 from blessings import Terminal
 from collections import Sequence, OrderedDict
 from numbers import Integral
+from contextlib import contextmanager
 
 
 term = Terminal()
@@ -99,6 +100,24 @@ def context_slice(diff_list, context_limit):
         _get_context_slice_indices(diff_list, context_limit)]
 
 
+def recursively_set_context_limit(diff, context_limit):
+    diff.context_limit = context_limit
+    for diff_item in diff:
+        if type(diff_item) == DiffItem:
+            item = diff_item.item
+        else:
+            item = diff_item.value
+        if isinstance(item, Diff):
+            recursively_set_context_limit(item, context_limit)
+
+
+@contextmanager
+def adjusted_context_limit(diff, context_limit):
+    recursively_set_context_limit(diff, context_limit)
+    yield
+    recursively_set_context_limit(diff, None)
+
+
 class Diff(object):
     '''
     A collection of DiffItems.
@@ -108,22 +127,15 @@ class Diff(object):
     :attribute type: The type of the objects being diffed
     :attribute diffs: A list containing all of the DiffItems including an
         unchanged ones.
-    :attribute context_blocks: A list containing slices of the diffs list which
-        have changes. Each slice is contained in a ContextBlock object.
-    :attribute context_limit: Determines how many unchanged items can be
-        included within a context block.
     :attribute depth: Indicates how deep this diff is in a nested diff.
 
     Diffs are uniquely identified by the values of their attributes.
-
-    :method create_context_blocks: Should be used after the Diff is fully
-        populated; running this method completes the diff making it usable
-        programmatically as well as making it display correctly.
     '''
-    def __init__(self, obj_type, diffs, context_limit=3, depth=0):
+    def __init__(self, obj_type, diffs, depth=0):
         self.type = obj_type
         self.diffs = tuple(diffs)
-        self.context_limit = context_limit
+        # flag used by __format__ and the DiffContext context manager
+        self.context_limit = None
         self.depth = depth
         self._indent = '   ' * depth
         self.start = unchanged('{}('.format(self.type))
@@ -153,8 +165,7 @@ class Diff(object):
     def __getitem__(self, index):
         cls = type(self)
         if isinstance(index, slice):
-            return cls(
-                self.type, self.diffs[index], self.context_limit, self.depth)
+            return cls(self.type, self.diffs[index], self.depth)
         elif isinstance(index, Integral):
             return self.diffs[index]
         else:
@@ -164,8 +175,7 @@ class Diff(object):
     def __eq__(self, other):
         eq = (
             self.type == other.type,
-            diffs_are_equal(self, other),
-            self.context_limit == other.context_limit)
+            diffs_are_equal(self, other))
         return all(eq)
 
     def __ne__(self, other):
@@ -174,8 +184,9 @@ class Diff(object):
     def __format__(self, fmt_spec=''):
         if fmt_spec.endswith('c'):
             context_limit = int(fmt_spec[:-1])
-            slices = [s for s in context_slice(self, context_limit)]
-            return '\n'.join(str(s) for s in slices)
+            with adjusted_context_limit(self, context_limit):
+                formatted_string = str(self)
+            return formatted_string
         else:
             return str(self)
 
@@ -188,8 +199,9 @@ class Diff(object):
                     insert('+'), insert(t_s), insert(t_e))
 
     def __str__(self):
-        # display a context banner at the top if we have context, ie we are
-        # diffing sequences.
+        if not self.diffs:
+            return self.start + self.end
+
         output = [self.start]
         if self.context_limit is not None:
             items_to_display = context_slice(self.diffs, self.context_limit)

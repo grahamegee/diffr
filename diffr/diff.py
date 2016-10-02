@@ -161,7 +161,7 @@ def _nested_diff_input(chunk):
     return removal, insertion, unchanged_item
 
 
-def diff_sequence(from_, to, context_limit=3, depth=0):
+def diff_sequence(from_, to, depth=0):
     '''
     Return a Diff object of two sequence types. If the sequences are the same
     length a recursive call may be attempted to find diffs in nested
@@ -171,8 +171,6 @@ def diff_sequence(from_, to, context_limit=3, depth=0):
 
     :parameter from_: first sequence
     :parameter to: second sequence
-    :parameter context_limit: Controls how many unchanged items can be part of a
-        block of change (a Diff.ContextBlock). Default is 3.
     :private parameter _depth: Keeps track of level of nesting during
         recursive calls, DO NOT USE.
 
@@ -196,8 +194,7 @@ def diff_sequence(from_, to, context_limit=3, depth=0):
             removal, insertion, unchanged_item = _nested_diff_input(chunk)
             if removal and insertion:
                 try:
-                    item = diff(
-                        removal.item, insertion.item, context_limit, depth + 1)
+                    item = diff(removal.item, insertion.item, depth + 1)
                 except TypeError:
                     nesting = False
                 else:
@@ -210,18 +207,16 @@ def diff_sequence(from_, to, context_limit=3, depth=0):
                 diffs += [unchanged_item]
         else:
             diffs += chunk
-    seq_diff = Diff(type(from_), diffs, context_limit, depth)
+    seq_diff = Diff(type(from_), diffs, depth)
     return seq_diff
 
 
-def diff_set(from_, to, context_limit=3, _depth=0):
+def diff_set(from_, to, _depth=0):
     '''
     Return a Diff object of two sets.
 
     :parameter from_: first set
     :paramter to: second set
-    :parameter context_limit: Controls how many unchanged items can be part of a
-        block of change (a Diff.ContextBlock). Default is 3.
     :private parameter _depth: Keeps track of level of nesting during
     recursive calls, DO NOT USE.
     '''
@@ -229,11 +224,11 @@ def diff_set(from_, to, context_limit=3, _depth=0):
     removals = [DiffItem(remove, i) for i in from_.difference(to)]
     unchanged_items = [DiffItem(unchanged, i) for i in from_.intersection(to)]
     diffs = removals + unchanged_items + insertions
-    set_diff = Diff(type(from_), diffs, context_limit, _depth)
+    set_diff = Diff(type(from_), diffs, _depth)
     return set_diff
 
 
-def diff_mapping(from_, to, context_limit=3, _depth=0):
+def diff_mapping(from_, to, _depth=0):
     '''
     Return a Diff object of two mapping types. If the two mapping types
     contain items that have the same key with differen't values a recursive
@@ -242,8 +237,6 @@ def diff_mapping(from_, to, context_limit=3, _depth=0):
 
     :parameter from_: first mapping type
     :parameter to_: second mapping type
-    :parameter context_limit: Controls how many unchanged items can be part of a
-        block of change (a Diff.ContextBlock). Default is 3.
     :private parameter _depth: Keeps track of level of nesting during
     recursive calls, DO NOT USE.'''
     removals = [
@@ -261,18 +254,18 @@ def diff_mapping(from_, to, context_limit=3, _depth=0):
             other.append(MappingDiffItem(unchanged, k, unchanged, from_[k]))
         else:
             try:
-                val = diff(from_[k], to[k], context_limit, _depth + 1)
+                val = diff(from_[k], to[k], _depth + 1)
             except TypeError:
                 other.append(MappingDiffItem(unchanged, k, remove, from_[k]))
                 other.append(MappingDiffItem(unchanged, k, insert, to[k]))
             else:
                 other.append(MappingDiffItem(unchanged, k, changed, val))
     diffs = removals + other + insertions
-    dict_diff = Diff(type(from_), diffs, context_limit, _depth)
+    dict_diff = Diff(type(from_), diffs, _depth)
     return dict_diff
 
 
-def diff_ordered_mapping(from_, to, context_limit=3, _depth=0):
+def diff_ordered_mapping(from_, to, _depth=0):
     key_diff_pipeline = diff_item_data_factory(
         deque(from_.keys()), deque(to.keys()),
         find_largest_common_subsequence(from_.keys(), to.keys())
@@ -291,7 +284,7 @@ def diff_ordered_mapping(from_, to, context_limit=3, _depth=0):
                 ]
             else:
                 try:
-                    val = diff(from_[key], to[key], context_limit, _depth + 1)
+                    val = diff(from_[key], to[key], _depth + 1)
                 except TypeError:
                     diffs += [
                         MappingDiffItem(unchanged, key, remove, from_[key])
@@ -303,11 +296,11 @@ def diff_ordered_mapping(from_, to, context_limit=3, _depth=0):
                     diffs += [
                         MappingDiffItem(unchanged, key, changed, val)
                     ]
-    dict_diff = Diff(type(from_), diffs, context_limit, _depth)
+    dict_diff = Diff(type(from_), diffs, _depth)
     return dict_diff
 
 
-def diff(from_, to, context_limit=3, _depth=0):
+def diff(from_, to, _depth=0):
     '''
     Return a Diff object of two collections. Recursive calls may be
     attempted if it is sensible to do so to provide more detailed diffs of
@@ -315,8 +308,6 @@ def diff(from_, to, context_limit=3, _depth=0):
 
     :parameter from_: first collection
     :parameter to: second collection
-    :parameter context_limit: Controls how many unchanged items can be part of a
-        block of change (a Diff.ContextBlock). Default is 3.
     :private parameter _depth: Keeps track of level of nesting during
     recursive calls, DO NOT USE.'''
     if type(from_) != type(to):
@@ -324,13 +315,13 @@ def diff(from_, to, context_limit=3, _depth=0):
             'diff params are different types {} != {}'.format(
                 type(from_), type(to)))
     elif isinstance(from_, Sequence):
-        return diff_sequence(from_, to, context_limit, _depth)
+        return diff_sequence(from_, to, _depth)
     elif isinstance(from_, Set):
-        return diff_set(from_, to, context_limit, _depth)
+        return diff_set(from_, to, _depth)
     elif isinstance(from_, OrderedDict):
-        return diff_ordered_mapping(from_, to, context_limit, _depth)
+        return diff_ordered_mapping(from_, to, _depth)
     elif isinstance(from_, Mapping):
-        return diff_mapping(from_, to, context_limit, _depth)
+        return diff_mapping(from_, to, _depth)
     else:
         raise TypeError(
             'No mechanism for diffing objects of type {}'.format(
