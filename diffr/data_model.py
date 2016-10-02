@@ -75,6 +75,8 @@ def _get_context_slice_indices(diff_list, context_limit):
     context slices of the Diff.
     '''
     changed_indices = _indices_of_changed_items(diff_list, context_limit)
+    if not changed_indices:
+        return []
     previous = changed_indices[0]
     slices = []
     s = [previous]
