@@ -74,78 +74,6 @@ class DiffsAreEqualTests(unittest.TestCase):
 
 
 class DiffTests(unittest.TestCase):
-    def test_contexts_start_and_end_with_modified_items(self):
-        # this constraint could change; people may want more context...
-        diffs = [
-            DiffItem(unchanged, 1),
-            DiffItem(insert, 2),
-            DiffItem(insert, 2),
-            DiffItem(unchanged, 1)]
-        diff_obj = Diff(list, diffs)
-        self.assertEqual(
-            diff_obj._create_context_markers(), [(1, 3)])
-
-    def test_context_limit_is_adjustable(self):
-        '''The default context limit is 3, if we adjust it to 1 we expect a new
-           new context to be started if there is a gap of 2'''
-        diffs = [
-            DiffItem(insert, 1),
-            DiffItem(unchanged, 0),
-            DiffItem(unchanged, 0),
-            DiffItem(remove, 1)]
-        diff_obj = Diff(list, diffs, context_limit=1)
-        self.assertEqual(
-            diff_obj._create_context_markers(), [(0, 1), (3, 4)])
-
-    def test_context_limit_max(self):
-        '''Once a context is started,so long as the number of contiguous
-           unchanged items doesn't exceed the context limit, they remain part of
-           the context'''
-        diffs = [
-            DiffItem(insert, 1),
-            DiffItem(unchanged, 0),
-            DiffItem(unchanged, 0),
-            DiffItem(remove, 1)]
-        diff_obj = Diff(list, diffs, context_limit=2)
-        self.assertEqual(
-            diff_obj._create_context_markers(), [(0, 4)])
-
-    def test_context_limit_max_plus_one(self):
-        '''Once a context is started if the number of contiguous unchanged items
-           exceeds the context limit the context is cut off at the last modified
-           item and a new context is started'''
-        diffs = [
-            DiffItem(insert, 1),
-            DiffItem(unchanged, 0),
-            DiffItem(unchanged, 0),
-            DiffItem(unchanged, 0),
-            DiffItem(remove, 1)]
-        diff_obj = Diff(list, diffs, context_limit=2)
-        self.assertEqual(
-            diff_obj._create_context_markers(), [(0, 1), (4, 5)])
-
-    def test_context_not_finished_by_end_of_diffs_list(self):
-        diffs = [
-            DiffItem(insert, 1),
-            DiffItem(unchanged, 0)]
-        diff_obj = Diff(list, diffs, context_limit=2)
-        self.assertEqual(
-            diff_obj._create_context_markers(), [(0, 1)])
-
-    # context block generation
-    def test_context_block_generation(self):
-        diffs = [
-            DiffItem(insert, 1),
-            DiffItem(unchanged, 0),
-            DiffItem(unchanged, 0),
-            DiffItem(remove, 1)]
-        expected = [
-            Diff.ContextBlock(list, [diffs[0]]),
-            Diff.ContextBlock(list, [diffs[3]])]
-        diff_obj = Diff(list, diffs, context_limit=1)
-        self.assertEqual(
-            diff_obj.context_blocks, expected)
-
     def test_len_diff(self):
         self.assertEqual(len(diff([1, 2], [1, 2])), 2)
 
@@ -209,55 +137,6 @@ class DiffComparisonTests(unittest.TestCase):
     def test_diffs_differ_by_diffs(self):
         self.expected_diff.diffs = []
         self.assertNotEqual(self.base_diff, self.expected_diff)
-
-    def test_diffs_differ_by_context_blocks(self):
-        self.expected_diff.context_blocks = []
-        self.assertNotEqual(self.base_diff, self.expected_diff)
-
-
-class DiffContextBlockTests(unittest.TestCase):
-    def setUp(self):
-        self.base_context_diffs = [
-            DiffItem(insert, 'a', (0, 1, 1, 2)),
-            DiffItem(unchanged, 'b', (1, 2, 2, 3)),
-            DiffItem(remove, 'c', (2, 3, 3, 4))]
-        self.base_context_block = Diff(
-            list, self.base_context_diffs).ContextBlock(
-                list, self.base_context_diffs)
-
-    def test_ContextBlock_context_is_correct(self):
-        self.assertEqual(self.base_context_block.context, (0, 3, 1, 4))
-
-    # test rich comparison methods
-    def test_ContextBlocks_equal(self):
-        equal_context_block = Diff(
-            list, self.base_context_diffs).ContextBlock(
-                list, self.base_context_diffs)
-        self.assertEqual(
-            self.base_context_block, equal_context_block)
-
-    def test_ContextBlocks_have_different_diffs(self):
-        context_diffs = [
-            d for d in self.base_context_diffs if d.state is not unchanged]
-        different_context_block = Diff(list, context_diffs).ContextBlock(
-            list, context_diffs)
-        self.assertNotEqual(
-            self.base_context_block, different_context_block)
-
-    def test_ContextBlocks_have_different_contexts(self):
-        self.base_context_diffs[0].context = (2, 3, 4, 5)
-        different_context_block = Diff(
-            list, self.base_context_diffs).ContextBlock(
-                list, self.base_context_diffs)
-        self.assertNotEqual(
-            self.base_context_block, different_context_block)
-
-    def test_ContextBlocks_have_different_depths(self):
-        different_context_block = Diff(
-            list, self.base_context_diffs).ContextBlock(
-                list, self.base_context_diffs, depth=1)
-        self.assertEqual(
-            self.base_context_block, different_context_block)
 
 
 class DiffItemTests(unittest.TestCase):
