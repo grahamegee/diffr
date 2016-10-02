@@ -115,18 +115,14 @@ class DiffComparisonTests(unittest.TestCase):
             DiffItem(unchanged, 2),
             DiffItem(remove, 3)
         ]
-        self.base_diff = Diff(list, diffs, context_limit=1, depth=0)
-        self.expected_diff = Diff(list, diffs, context_limit=1, depth=0)
+        self.base_diff = Diff(list, diffs, depth=0)
+        self.expected_diff = Diff(list, diffs, depth=0)
 
     def test_diffs_compare_equal(self):
         self.assertEqual(self.base_diff, self.expected_diff)
 
     def test_diffs_differ_by_type(self):
         self.expected_diff.type = tuple
-        self.assertNotEqual(self.base_diff, self.expected_diff)
-
-    def test_diffs_differ_by_context_limit(self):
-        self.expected_diff.context_limit = 2
         self.assertNotEqual(self.base_diff, self.expected_diff)
 
     def test_diffs_with_different_depths_compare_equal(self):

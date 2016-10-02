@@ -318,20 +318,6 @@ class DiffSequenceTest(unittest.TestCase):
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
 
-    def test_context_limit_is_adjustable(self):
-        seq1 = [2, 3, 4]
-        seq2 = [1, 3, 5]
-        diff_obj = diff_sequence(seq1, seq2, context_limit=0)
-        diffs = [
-            DiffItem(remove, 2, (0, 1, 0, 0)),
-            DiffItem(insert, 1, (1, 1, 0, 1)),
-            DiffItem(unchanged, 3, (1, 2, 1, 2)),
-            DiffItem(remove, 4, (2, 3, 2, 2)),
-            DiffItem(insert, 5, (3, 3, 2, 3))]
-        expected_diff = Diff(list, diffs, context_limit=0)
-        self.assertEqual(diff_obj, expected_diff)
-        self.assertEqual(patch(seq1, diff_obj), seq2)
-
     def test_depth_is_adjustable(self):
         diff_obj = diff_sequence([1, 2], [1, 2], depth=4)
         self.assertEqual(diff_obj.depth, 4)
@@ -411,28 +397,6 @@ class DiffSetTests(unittest.TestCase):
             DiffItem(insert, 2),
             DiffItem(insert, 3)]
         expected_diff = Diff(set, diffs)
-        self.assertEqual(diff_obj, expected_diff)
-        self.assertEqual(patch(set1, diff_obj), set2)
-
-    def test_context_limit_is_adjustable(self):
-        set1 = {1, 2, 3, 4}
-        set2 = {0, 2, 3, 6}
-        diff_obj = diff_set(set1, set2, context_limit=1)
-        # This diff doesn't quite look like you would expect a sequence diff to
-        # i,e the first 2 DiffItems might look the wrong way round in sequences
-        # diffs removals come before inserts. Sets aren't ordered like
-        # sequences (although python displays them sorted), therefore it would
-        # be wrong to use the sequence diffing algorithms to diff them. In the
-        # case of sets the Diff.diffs list is constructed in the sort order of
-        # the union of the two sets being diffed.
-        diffs = [
-            DiffItem(remove, 1),
-            DiffItem(remove, 4),
-            DiffItem(unchanged, 2),
-            DiffItem(unchanged, 3),
-            DiffItem(insert, 0),
-            DiffItem(insert, 6)]
-        expected_diff = Diff(set, diffs, context_limit=1)
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(set1, diff_obj), set2)
 
@@ -518,21 +482,6 @@ class DiffMappingTests(unittest.TestCase):
             MappingDiffItem(
                 unchanged, 'a', changed, nested_diff)]
         expected_diff = Diff(dict, diffs)
-        self.assertEqual(diff_obj, expected_diff)
-        self.assertEqual(patch(map1, diff_obj), map2)
-
-    def test_context_limit_is_adjustable(self):
-        map1 = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
-        map2 = {'a': 2, 'b': 2, 'c': 3, 'e': 4}
-        diff_obj = diff_mapping(map1, map2, context_limit=1)
-        diffs = [
-            MappingDiffItem(remove, 'd', remove, 4),
-            MappingDiffItem(unchanged, 'a', remove, 1),
-            MappingDiffItem(unchanged, 'a', insert, 2),
-            MappingDiffItem(unchanged, 'c', unchanged, 3),
-            MappingDiffItem(unchanged, 'b', unchanged, 2),
-            MappingDiffItem(insert, 'e', insert, 4)]
-        expected_diff = Diff(dict, diffs, context_limit=1)
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(map1, diff_obj), map2)
 
@@ -765,10 +714,9 @@ class DiffFunctionTests(unittest.TestCase):
         diff_obj = diff((), ())
         self.assertEqual(diff_obj, Diff(tuple, []))
 
-    def test_context_limit_is_adjustable(self):
         map1 = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
         map2 = {'a': 2, 'b': 2, 'c': 3, 'e': 4}
-        diff_obj = diff(map1, map2, context_limit=1)
+        diff_obj = diff(map1, map2)
         diffs = [
             MappingDiffItem(remove, 'd', remove, 4),
             MappingDiffItem(unchanged, 'a', remove, 1),
@@ -776,7 +724,7 @@ class DiffFunctionTests(unittest.TestCase):
             MappingDiffItem(unchanged, 'c', unchanged, 3),
             MappingDiffItem(unchanged, 'b', unchanged, 2),
             MappingDiffItem(insert, 'e', insert, 4)]
-        expected_diff = Diff(dict, diffs, context_limit=1)
+        expected_diff = Diff(dict, diffs)
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(map1, diff_obj), map2)
 
@@ -888,7 +836,7 @@ class DiffStringTests(unittest.TestCase):
         set1 = set()
         set2 = set()
         diff_obj = diff(set1, set2)
-        expected_diff_output = '{}\n{}'.format(
+        expected_diff_output = '{}{}'.format(
             unchanged('{!s}('.format(type(set1))),
             unchanged(')'))
         self.assertEqual(str(diff_obj), expected_diff_output)
