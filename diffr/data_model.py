@@ -83,10 +83,9 @@ def _get_context_slice_indices(diff_list, context_limit):
             previous = current
         else:
             slices.append(s)
+            s = [current]
             previous = current
-            s = [previous]
-    if not slices or slices[-1] != s:
-        slices.append(s)
+    slices.append(s)
     return [(i[0].left, i[-1].right) for i in slices]
 
 
