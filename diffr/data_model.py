@@ -21,10 +21,6 @@ class _Window(object):
         self.left = left_reach if left_reach > 0 else 0
         self.right = number + context_limit + 1
 
-    def __repr__(self):
-        return '{}(number={}, left={}, right={})'.format(
-            self.__class__.__name__, self.number, self.left, self.right)
-
 
 def state_to_prefix(state):
     if state is insert:
