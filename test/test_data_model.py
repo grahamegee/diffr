@@ -2,6 +2,9 @@ import unittest
 from collections import OrderedDict
 from diffr.data_model import (
     sequences_contain_same_items,
+    recursively_set_context_limit,
+    adjusted_context_limit,
+    context_slice,
     diffs_are_equal,
     Diff, DiffItem, MappingDiffItem)
 from diffr.diff import insert, remove, unchanged, diff
@@ -105,6 +108,92 @@ class DiffTests(unittest.TestCase):
         d = diff([1, 2, 3, 4], [2, 3, 4, 5])
         diff_items = [di for di in d]
         self.assertEqual(tuple(diff_items), d.diffs)
+
+
+class DiffDisplayTests(unittest.TestCase):
+    def test_context_slice_empty_diff(self):
+        d = diff(set(), set())
+        self.assertEqual(context_slice(d, 2), [])
+
+    def test_context_slice_no_differences(self):
+        d = diff({1, 2, 3}, {1, 2, 3})
+        self.assertEqual(context_slice(d.diffs, 2), [])
+
+    def test_context_slice_one_changed_item(self):
+        # the loop in get_context_slice_indices is skipped and "not slices"
+        # branch is reached
+        d = diff('-a', '-')
+        self.assertEqual(
+            context_slice(d.diffs, 1),
+            [(
+                DiffItem(unchanged, '-', (0, 1, 0, 1)),
+                DiffItem(remove, 'a', (1, 2, 1, 1))
+            )])
+
+    def test_context_slice_two_changed_items_with_a_gap(self):
+        # the loop in get_context_slice_indices is skipped and "not slices"
+        # branch is reached
+        d = diff('a--b', '--')
+        self.assertEqual(
+            context_slice(d.diffs, 0),
+            [
+                (DiffItem(remove, 'a', (0, 1, 0, 0)),),
+                (DiffItem(remove, 'b', (3, 4, 2, 2)),)
+            ])
+
+    def test_context_slice_substitution_in_the_middle(self):
+        d = diff('---a---', '---b---')
+        self.assertEqual(
+            context_slice(d.diffs, 1),
+            [(
+                DiffItem(unchanged, '-', (2, 3, 2, 3)),
+                DiffItem(remove, 'a', (3, 4, 3, 3)),
+                DiffItem(insert, 'b', (4, 4, 3, 4)),
+                DiffItem(unchanged, '-', (4, 5, 4, 5))
+            )])
+
+    def test_context_slice_two_substitutions_with_gap(self):
+        d = diff('---a---x', '---b---y')
+        self.assertEqual(
+            context_slice(d.diffs, 1),
+            [
+                (
+                    DiffItem(unchanged, '-', (2, 3, 2, 3)),
+                    DiffItem(remove, 'a', (3, 4, 3, 3)),
+                    DiffItem(insert, 'b', (4, 4, 3, 4)),
+                    DiffItem(unchanged, '-', (4, 5, 4, 5))
+                ),
+                (
+                    DiffItem(unchanged, '-', (6, 7, 6, 7)),
+                    DiffItem(remove, 'x', (7, 8, 7, 7)),
+                    DiffItem(insert, 'y', (8, 8, 7, 8))
+                ),
+            ])
+
+
+class AdjustContextLimitTests(unittest.TestCase):
+    def test_recursively_setting_context(self):
+        a = [0, 0, {1: 'aa', 2: 2}]
+        b = [0, 0, {1: 'ab', 2: 2}]
+        d = diff(a, b)
+        self.assertEqual(d.context_limit, None)
+        self.assertEqual(d[2].item.context_limit, None)
+        self.assertEqual(d[2].item[0].value.context_limit, None)
+        recursively_set_context_limit(d, 0)
+        self.assertEqual(d.context_limit, 0)
+        self.assertEqual(d[2].item.context_limit, 0)
+        self.assertEqual(d[2].item[0].value.context_limit, 0)
+
+    def test_adjusted_context_limit(self):
+        # Yeah possibly unnecessary. check that a context manager behaves like
+        # a context manager, but no harm in more tests
+        a = '---a---'
+        b = '---b---'
+        d = diff(a, b)
+        self.assertEqual(d.context_limit, None)
+        with adjusted_context_limit(d, 2):
+            self.assertEqual(d.context_limit, 2)
+        self.assertEqual(d.context_limit, None)
 
 
 class DiffComparisonTests(unittest.TestCase):
