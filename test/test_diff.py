@@ -1,7 +1,6 @@
-import sys
 import unittest
 from collections import OrderedDict, namedtuple, deque
-from diffr.data_model import Diff, DiffItem, MappingDiffItem, term
+from diffr.data_model import Diff, DiffItem, MappingDiffItem
 from diffr.patch import patch
 from diffr.diff import (
     _backtrack, _build_lcs_matrix,
@@ -189,8 +188,6 @@ class DiffSequenceTest(unittest.TestCase):
             DiffItem(remove, 'o', (4, 5, 1, 1)),
             DiffItem(insert, 'i', (5, 5, 1, 2))]
         expected_diff = Diff(str, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(str, diffs[1:])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
 
@@ -209,8 +206,6 @@ class DiffSequenceTest(unittest.TestCase):
             DiffItem(unchanged, 6, (5, 6, 6, 7)),
             DiffItem(remove, 7, (6, 7, 7, 7))]
         expected_diff = Diff(tuple, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(tuple, diffs)]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
 
@@ -226,23 +221,8 @@ class DiffSequenceTest(unittest.TestCase):
             DiffItem(insert, 'l', (2, 2, 3, 4)),
             DiffItem(insert, 'o', (2, 2, 4, 5))]
         expected_diff = Diff(str, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(str, diffs[1:])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
-
-    def test_context_blocks_provides_slices(self):
-        seq1 = 'um hello there'
-        seq2 = 'yo, I mean hello'
-        diff_obj = diff_sequence(seq1, seq2)
-        cb_1 = diff_obj.context_blocks[0]
-        cb_2 = diff_obj.context_blocks[1]
-        s1_start, s1_end, s2_start, s2_end = cb_1.context
-        self.assertEqual(seq1[s1_start:s1_end], 'um')
-        self.assertEqual(seq2[s2_start:s2_end], 'yo, I mean')
-        s1_start, s1_end, s2_start, s2_end = cb_2.context
-        self.assertEqual(seq1[s1_start:s1_end], ' there')
-        self.assertEqual(seq2[s2_start:s2_end], '')
 
     def test_no_recursion_insert_remove_counts_not_equal_1(self):
         # nested_diff_input is None
@@ -256,8 +236,6 @@ class DiffSequenceTest(unittest.TestCase):
             DiffItem(insert, (2, 3), (3, 3, 1, 2)),
             DiffItem(insert, 2, (3, 3, 2, 3))]
         expected_diff = Diff(list, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(list, diffs[1:])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
 
@@ -273,8 +251,6 @@ class DiffSequenceTest(unittest.TestCase):
             DiffItem(insert, 3, (2, 2, 1, 2)),
             DiffItem(unchanged, 5, (2, 3, 2, 3))]
         expected_diff = Diff(list, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(list, diffs[1:3])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
 
@@ -290,8 +266,6 @@ class DiffSequenceTest(unittest.TestCase):
             DiffItem(insert, [1, 2], (2, 2, 1, 2)),
             DiffItem(unchanged, 3, (2, 3, 2, 3))]
         expected_diff = Diff(list, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(list, diffs[1:3])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
 
@@ -306,8 +280,6 @@ class DiffSequenceTest(unittest.TestCase):
             DiffItem(unchanged, 2, (2, 3, 2, 3)),
             DiffItem(remove, 3, (3, 4, 3, 3))]
         expected_diff = Diff(tuple, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(tuple, diffs[1:])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
 
@@ -321,15 +293,11 @@ class DiffSequenceTest(unittest.TestCase):
             DiffItem(unchanged, 'b', (1, 2, 0, 1)),
             DiffItem(insert, 'c', (2, 2, 1, 2))]
         nested_diff = Diff(str, nested_diffs, depth=1)
-        nested_diff.context_blocks = [
-            nested_diff.ContextBlock(str, nested_diffs, depth=1)]
         diffs = [
             DiffItem(unchanged, 1, (0, 1, 0, 1)),
             DiffItem(changed, nested_diff, (1, 2, 1, 2)),
             DiffItem(unchanged, 2, (2, 3, 2, 3))]
         expected_diff = Diff(tuple, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(tuple, [diffs[1]])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
 
@@ -342,31 +310,10 @@ class DiffSequenceTest(unittest.TestCase):
             DiffItem(insert, 0, (1, 1, 0, 1))
         ]
         nested_diff = Diff(list, nested_diffs, depth=1)
-        nested_diff.context_blocks = [
-            nested_diff.ContextBlock(list, nested_diffs, depth=1)]
         diffs = [
             DiffItem(changed, nested_diff, (0, 1, 0, 1)),
             DiffItem(unchanged, 2, (1, 2, 1, 2))]
         expected_diff = Diff(list, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(list, [diffs[0]])]
-        self.assertEqual(diff_obj, expected_diff)
-        self.assertEqual(patch(seq1, diff_obj), seq2)
-
-    def test_context_limit_is_adjustable(self):
-        seq1 = [2, 3, 4]
-        seq2 = [1, 3, 5]
-        diff_obj = diff_sequence(seq1, seq2, context_limit=0)
-        diffs = [
-            DiffItem(remove, 2, (0, 1, 0, 0)),
-            DiffItem(insert, 1, (1, 1, 0, 1)),
-            DiffItem(unchanged, 3, (1, 2, 1, 2)),
-            DiffItem(remove, 4, (2, 3, 2, 2)),
-            DiffItem(insert, 5, (3, 3, 2, 3))]
-        expected_diff = Diff(list, diffs, context_limit=0)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(list, diffs[0:2]),
-            expected_diff.ContextBlock(list, diffs[3:5])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
 
@@ -383,18 +330,12 @@ class DiffSequenceTest(unittest.TestCase):
             DiffItem(insert, 'b', (1, 1, 0, 1))
         ]
         nested_diff = Diff(str, nested_diffs, depth=1)
-        nested_diff.context_blocks = [
-            nested_diff.ContextBlock(str, nested_diffs, depth=1)
-        ]
         diffs = [
             DiffItem(unchanged, 1, (0, 1, 0, 1)),
             DiffItem(unchanged, 2, (1, 2, 1, 2)),
             DiffItem(changed, nested_diff, (2, 3, 2, 3)),
         ]
         expected_diff = Diff(list, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(list, diffs[2:])
-        ]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
 
@@ -411,9 +352,6 @@ class DiffSequenceTest(unittest.TestCase):
             DiffItem(insert, 'd', (3, 3, 2, 3))
         ]
         expected_diff = Diff(str, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(str, diffs[2:4])
-        ]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(seq1, diff_obj), seq2)
 
@@ -445,8 +383,6 @@ class DiffSetTests(unittest.TestCase):
             DiffItem(remove, 3),
             DiffItem(unchanged, 4)]
         expected_diff = Diff(set, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(set, diffs[:3])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(set1, diff_obj), set2)
 
@@ -460,33 +396,6 @@ class DiffSetTests(unittest.TestCase):
             DiffItem(insert, 2),
             DiffItem(insert, 3)]
         expected_diff = Diff(set, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(set, diffs[1:])]
-        self.assertEqual(diff_obj, expected_diff)
-        self.assertEqual(patch(set1, diff_obj), set2)
-
-    def test_context_limit_is_adjustable(self):
-        set1 = {1, 2, 3, 4}
-        set2 = {0, 2, 3, 6}
-        diff_obj = diff_set(set1, set2, context_limit=1)
-        # This diff doesn't quite look like you would expect a sequence diff to
-        # i,e the first 2 DiffItems might look the wrong way round in sequences
-        # diffs removals come before inserts. Sets aren't ordered like
-        # sequences (although python displays them sorted), therefore it would
-        # be wrong to use the sequence diffing algorithms to diff them. In the
-        # case of sets the Diff.diffs list is constructed in the sort order of
-        # the union of the two sets being diffed.
-        diffs = [
-            DiffItem(remove, 1),
-            DiffItem(remove, 4),
-            DiffItem(unchanged, 2),
-            DiffItem(unchanged, 3),
-            DiffItem(insert, 0),
-            DiffItem(insert, 6)]
-        expected_diff = Diff(set, diffs, context_limit=1)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(set, diffs[:2]),
-            expected_diff.ContextBlock(set, diffs[4:])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(set1, diff_obj), set2)
 
@@ -522,8 +431,6 @@ class DiffMappingTests(unittest.TestCase):
             MappingDiffItem(remove, 'd', remove, 4),
             MappingDiffItem(unchanged, 'c', unchanged, 3)]
         expected_diff = Diff(dict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(dict, diffs[0:3])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(map1, diff_obj), map2)
 
@@ -537,8 +444,6 @@ class DiffMappingTests(unittest.TestCase):
             MappingDiffItem(insert, 'b', insert, 2),
             MappingDiffItem(insert, 'd', insert, 4)]
         expected_diff = Diff(dict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(dict, diffs[1:])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(map1, diff_obj), map2)
 
@@ -550,8 +455,6 @@ class DiffMappingTests(unittest.TestCase):
             MappingDiffItem(unchanged, 'a', remove, 1),
             MappingDiffItem(unchanged, 'a', insert, 2)]
         expected_diff = Diff(dict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(dict, diffs)]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(map1, diff_obj), map2)
 
@@ -563,8 +466,6 @@ class DiffMappingTests(unittest.TestCase):
             MappingDiffItem(unchanged, 'a', remove, (1, 2)),
             MappingDiffItem(unchanged, 'a', insert, '1, 2')]
         expected_diff = Diff(dict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(dict, diffs)]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(map1, diff_obj), map2)
 
@@ -576,32 +477,10 @@ class DiffMappingTests(unittest.TestCase):
             MappingDiffItem(unchanged, 'b', remove, 1),
             MappingDiffItem(unchanged, 'b', insert, 2)]
         nested_diff = Diff(dict, nested_diffs, depth=1)
-        nested_diff.context_blocks = [
-            nested_diff.ContextBlock(dict, nested_diffs, depth=1)]
         diffs = [
             MappingDiffItem(
                 unchanged, 'a', changed, nested_diff)]
         expected_diff = Diff(dict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(dict, diffs)]
-        self.assertEqual(diff_obj, expected_diff)
-        self.assertEqual(patch(map1, diff_obj), map2)
-
-    def test_context_limit_is_adjustable(self):
-        map1 = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
-        map2 = {'a': 2, 'b': 2, 'c': 3, 'e': 4}
-        diff_obj = diff_mapping(map1, map2, context_limit=1)
-        diffs = [
-            MappingDiffItem(remove, 'd', remove, 4),
-            MappingDiffItem(unchanged, 'a', remove, 1),
-            MappingDiffItem(unchanged, 'a', insert, 2),
-            MappingDiffItem(unchanged, 'c', unchanged, 3),
-            MappingDiffItem(unchanged, 'b', unchanged, 2),
-            MappingDiffItem(insert, 'e', insert, 4)]
-        expected_diff = Diff(dict, diffs, context_limit=1)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(dict, diffs[:3]),
-            expected_diff.ContextBlock(dict, diffs[5:])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(map1, diff_obj), map2)
 
@@ -618,16 +497,10 @@ class DiffMappingTests(unittest.TestCase):
             DiffItem(insert, 'b', (1, 1, 0, 1))
         ]
         nested_diff = Diff(str, nested_diffs, depth=1)
-        nested_diff.context_blocks = [
-            nested_diff.ContextBlock(str, nested_diffs, depth=1)
-        ]
         diffs = [
             MappingDiffItem(unchanged, 1, changed, nested_diff)
         ]
         expected_diff = Diff(dict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(dict, diffs)
-        ]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(map1, diff_obj), map2)
 
@@ -663,9 +536,6 @@ class DiffOrderedMapping(unittest.TestCase):
             MappingDiffItem(unchanged, 'c', unchanged, 3)
         ]
         expected_diff = Diff(OrderedDict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(OrderedDict, diffs[1:3])
-        ]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(od1, diff_obj), od2)
 
@@ -682,9 +552,6 @@ class DiffOrderedMapping(unittest.TestCase):
             MappingDiffItem(unchanged, 'c', unchanged, 3)
         ]
         expected_diff = Diff(OrderedDict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(OrderedDict, diffs[1:3])
-        ]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(od1, diff_obj), od2)
 
@@ -706,9 +573,6 @@ class DiffOrderedMapping(unittest.TestCase):
             DiffItem(insert, 'b', (1, 1, 0, 1))
         ]
         nested_diff = Diff(str, nested_diffs, depth=1)
-        nested_diff.context_blocks = [
-            nested_diff.ContextBlock(str, nested_diffs, depth=1)
-        ]
         diffs = [
             MappingDiffItem(unchanged, 'a', unchanged, 1),
             MappingDiffItem(insert, 'c', insert, 3),
@@ -717,9 +581,6 @@ class DiffOrderedMapping(unittest.TestCase):
             MappingDiffItem(remove, 'c', remove, 3)
         ]
         expected_diff = Diff(OrderedDict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(OrderedDict, diffs[1:])
-        ]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(d1, diff_obj), d2)
 
@@ -742,9 +603,6 @@ class DiffOrderedMapping(unittest.TestCase):
             MappingDiffItem(remove, 'b', remove, 'b')
         ]
         expected_diff = Diff(OrderedDict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(OrderedDict, diffs[1:])
-        ]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(d1, diff_obj), d2)
 
@@ -763,9 +621,6 @@ class DiffOrderedMapping(unittest.TestCase):
             DiffItem(insert, 3, (1, 1, 0, 1))
         ]
         nested_diff_obj = Diff(list, nested_diffs, depth=1)
-        nested_diff_obj.context_blocks = [
-            nested_diff_obj.ContextBlock(list, nested_diffs, depth=1)
-        ]
         diffs = [
             MappingDiffItem(unchanged, 'a', unchanged, 1),
             MappingDiffItem(
@@ -773,9 +628,6 @@ class DiffOrderedMapping(unittest.TestCase):
             MappingDiffItem(insert, 'c', insert, 4)
         ]
         expected_diff = Diff(OrderedDict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(OrderedDict, diffs[1:])
-        ]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(d1, diff_obj), d2)
 
@@ -799,8 +651,6 @@ class DiffFunctionTests(unittest.TestCase):
             MappingDiffItem(remove, 'b', remove, 3),
             MappingDiffItem(insert, 'a', insert, 3)]
         expected_diff = Diff(OrderedDict, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(OrderedDict, diffs[2:])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(od1, diff_obj), od2)
 
@@ -815,8 +665,6 @@ class DiffFunctionTests(unittest.TestCase):
             DiffItem(remove, 0, (2, 3, 2, 2)),
             DiffItem(insert, 1, (3, 3, 2, 3))]
         expected_diff = Diff(type(p1), diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(type(p1), diffs[2:])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(p1, diff_obj), p2)
 
@@ -830,8 +678,6 @@ class DiffFunctionTests(unittest.TestCase):
             DiffItem(unchanged, 3),
             DiffItem(insert, 4)]
         expected_diff = Diff(frozenset, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(frozenset, diffs)]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(fs1, diff_obj), fs2)
 
@@ -843,20 +689,14 @@ class DiffFunctionTests(unittest.TestCase):
             DiffItem(remove, 'a'),
             DiffItem(unchanged, 'b')]
         diff_depth_2 = Diff(set, depth_2_diffs, depth=2)
-        diff_depth_2.context_blocks = [
-            diff_depth_2.ContextBlock(set, [diff_depth_2.diffs[0]], depth=2)]
         depth_1_diffs = [
             MappingDiffItem(
                 unchanged, 'a', changed, diff_depth_2)]
         diff_depth_1 = Diff(dict, depth_1_diffs, depth=1)
-        diff_depth_1.context_blocks = [
-            diff_depth_1.ContextBlock(dict, diff_depth_1.diffs, depth=1)]
         diffs = [
             DiffItem(unchanged, 1, (0, 1, 0, 1)),
             DiffItem(changed, diff_depth_1, (1, 2, 1, 2))]
         expected_diff = Diff(list, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(list, [diffs[1]])]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(struct1, diff_obj), struct2)
 
@@ -873,10 +713,9 @@ class DiffFunctionTests(unittest.TestCase):
         diff_obj = diff((), ())
         self.assertEqual(diff_obj, Diff(tuple, []))
 
-    def test_context_limit_is_adjustable(self):
         map1 = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
         map2 = {'a': 2, 'b': 2, 'c': 3, 'e': 4}
-        diff_obj = diff(map1, map2, context_limit=1)
+        diff_obj = diff(map1, map2)
         diffs = [
             MappingDiffItem(remove, 'd', remove, 4),
             MappingDiffItem(unchanged, 'a', remove, 1),
@@ -884,10 +723,7 @@ class DiffFunctionTests(unittest.TestCase):
             MappingDiffItem(unchanged, 'c', unchanged, 3),
             MappingDiffItem(unchanged, 'b', unchanged, 2),
             MappingDiffItem(insert, 'e', insert, 4)]
-        expected_diff = Diff(dict, diffs, context_limit=1)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(dict, diffs[0:3]),
-            expected_diff.ContextBlock(dict, diffs[5:])]
+        expected_diff = Diff(dict, diffs)
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(map1, diff_obj), map2)
 
@@ -917,171 +753,5 @@ class DiffFunctionTests(unittest.TestCase):
             DiffItem(insert, 'b', (1, 1, 0, 1)),
         ]
         expected_diff = Diff(str, diffs)
-        expected_diff.context_blocks = [
-            expected_diff.ContextBlock(str, diffs)
-        ]
         self.assertEqual(diff_obj, expected_diff)
         self.assertEqual(patch(d1, diff_obj), d2)
-
-
-class DiffStringTests(unittest.TestCase):
-    '''
-    Ultimately the printed diff output will probably be the most useful part of
-    this library. Here we tests the Diff.__str__ correctly represents the Diff.
-    '''
-    # FIXME: As the printable output is so important, every test which creates a
-    # Diff object should probably also test that its str is as expected.
-    def test_diff_item_str(self):
-        item = 'a'
-        di = DiffItem(remove, item)
-        expected_str = remove('{}'.format(item))
-        self.assertEqual(di.__str__(), expected_str)
-
-    def test_mapping_diff_item_str(self):
-        key = 'a'
-        val = [1, 2, 3]
-        di = MappingDiffItem(
-            unchanged, key, insert, val)
-        expected_str = (
-            unchanged('{!s}: '.format(key)) +
-            insert('{!s}'.format(val)))
-        self.assertEqual(di.__str__(), expected_str)
-
-    # ContextBlock tests, the diff output is just a chain of ContextBlocks, the
-    # bulk of output creation is carried out within the ContextBlock.
-    def test_context_banner_is_correct_for_sequences(self):
-        '''
-        Context banners should contain the information you need the two original
-        sequences such that you only get the items contained within the
-        displayed context block.
-        '''
-        seq1 = [0, 1, 2, 3, 0]
-        seq2 = [0, 4, 2, 5, 0]
-        # the useful context for this diff is the slice 1:4 in both sequences
-        s1_start = s2_start = '1'
-        s1_end = s2_end = '4'
-        diff_obj = diff(seq1, seq2)
-        expected_banner = [
-            '@@ {}{},{} {}{},{} @@'.format(
-                remove('-'), remove(s1_start), remove(s1_end),
-                insert('+'), insert(s2_start), insert(s2_end))
-        ]
-        expected_diff_items = [
-            '{} {}'.format(remove('-'), remove('1')),
-            '{} {}'.format(insert('+'), insert('4')),
-            '{} {}'.format(unchanged(' '), unchanged('2')),
-            '{} {}'.format(remove('-'), remove('3')),
-            '{} {}'.format(insert('+'), insert('5'))
-        ]
-        expected_diff_output = '\n'.join(expected_banner + expected_diff_items)
-        # expected_diff_output is unicode type, convert to str for comparison
-        self.assertEqual(
-            diff_obj.context_blocks[0].__str__(), str(expected_diff_output))
-
-    def test_no_context_banner_for_non_sequence(self):
-        set1 = {1, 2}
-        set2 = {'a', 'b'}
-        diff_obj = diff(set1, set2)
-        expected_diff_items = [
-            '{} {}'.format(remove('-'), remove('1')),
-            '{} {}'.format(remove('-'), remove('2')),
-            '{} {}'.format(insert('+'), insert('a')),
-            '{} {}'.format(insert('+'), insert('b'))
-        ]
-        # allow the expected output to be unordered
-        actual_string = diff_obj.context_blocks[0].__str__()
-        actual_items = actual_string.split('\n')
-        if sys.version_info.major >= 3:
-            self.assertCountEqual(expected_diff_items, actual_items)
-        else:
-            self.assertItemsEqual(expected_diff_items, actual_items)
-
-    def test_diff_item_is_a_nested_diff(self):
-        dict1 = {1: 'ab'}
-        dict2 = {1: 'bc'}
-        diff_obj = diff(dict1, dict2)
-        nested_diff = diff('ab', 'bc', _depth=1)
-        diff_item = MappingDiffItem(
-            unchanged, 1, changed, nested_diff)
-        expected_diff_output = '{} {}'.format(changed(' '), diff_item)
-        self.assertEqual(
-            diff_obj.context_blocks[0].__str__(), expected_diff_output)
-
-    def test_empty_diff(self):
-        set1 = set()
-        set2 = set()
-        diff_obj = diff(set1, set2)
-        expected_diff_output = '{}\n{}'.format(
-            unchanged('{!s}('.format(type(set1))),
-            unchanged(')'))
-        self.assertEqual(diff_obj.__str__(), expected_diff_output)
-
-    # Diff tests
-    def test_only_context_blocks_are_displayed(self):
-        a = [1, 0, 0, 0, 0, 1]
-        b = [2, 0, 0, 0, 0, 2]
-        diff_obj = diff(a, b)
-        expected_diff_output = [
-            unchanged('{!s}('.format(type(a))),
-            '@@ {}{},{} {}{},{} @@'.format(
-                remove('-'), remove('0'), remove('1'),
-                insert('+'), insert('0'), insert('1')),
-            '{} {}'.format(remove('-'), remove('1')),
-            '{} {}'.format(insert('+'), insert('2')),
-            '@@ {}{},{} {}{},{} @@'.format(
-                remove('-'), remove('5'), remove('6'),
-                insert('+'), insert('5'), insert('6')),
-            '{} {}'.format(remove('-'), remove('1')),
-            '{} {}'.format(insert('+'), insert('2')),
-            unchanged(')')
-        ]
-        self.assertEqual(diff_obj.__str__(), '\n'.join(expected_diff_output))
-
-    def test_strings_display_on_single_line(self):
-        a = 'this'
-        b = 'that'
-        d = diff(a, b)
-        expected_str = [
-            unchanged('{!s}('.format(type(a))),
-            '@@ {}{},{} {}{},{} @@'.format(
-                remove('-'), remove('2'), remove('4'),
-                insert('+'), insert('2'), insert('4')),
-            ' {}{}{}{}'.format(
-                remove('-'), remove('-'), insert('+'), insert('+')),
-            ' {}{}{}{}'.format(
-                remove('i'), remove('s'), insert('a'), insert('t')),
-            unchanged(')')
-        ]
-        self.assertEqual(d.__str__(), '\n'.join(expected_str))
-
-    def test_string_diff_wraps_after_term_width(self):
-        a = ''
-        b = 'a' * term.width
-        d = diff(a, b)
-        expected_str = [
-            unchanged('{!s}('.format(type(a))),
-            '@@ {}{},{} {}{},{} @@'.format(
-                remove('-'), remove('0'), remove('0'),
-                insert('+'), insert('0'), insert('{}'.format(term.width))),
-            ' ' + ('{}'.format(insert('+')) * (term.width - 1)),
-            ' ' + ('{}'.format(insert('a')) * (term.width - 1)),
-            ' {}'.format(insert('+')),
-            ' {}'.format(insert('a')),
-            unchanged(')')
-        ]
-        self.assertEqual(d.__str__(), '\n'.join(expected_str))
-
-    def test_string_is_term_width(self):
-        a = ''
-        b = 'a' * (term.width - 1)
-        d = diff(a, b)
-        expected_str = [
-            unchanged('{!s}('.format(type(a))),
-            '@@ {}{},{} {}{},{} @@'.format(
-                remove('-'), remove('0'), remove('0'),
-                insert('+'), insert('0'), insert('{}'.format(term.width - 1))),
-            ' ' + ('{}'.format(insert('+')) * (term.width - 1)),
-            ' ' + ('{}'.format(insert('a')) * (term.width - 1)),
-            unchanged(')')
-        ]
-        self.assertEqual(d.__str__(), '\n'.join(expected_str))

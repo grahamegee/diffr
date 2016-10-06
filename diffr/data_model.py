@@ -1,6 +1,7 @@
 from blessings import Terminal
 from collections import Sequence, OrderedDict
 from numbers import Integral
+from contextlib import contextmanager
 
 
 term = Terminal()
@@ -11,6 +12,14 @@ insert = term.green
 remove = term.red
 unchanged = lambda string: term.normal + string
 changed = term.yellow
+
+
+class _Window(object):
+    def __init__(self, number, context_limit):
+        left_reach = number - context_limit
+        self.number = number
+        self.left = left_reach if left_reach > 0 else 0
+        self.right = number + context_limit + 1
 
 
 def state_to_prefix(state):
@@ -46,6 +55,64 @@ def diffs_are_equal(diff_a, diff_b):
         return sequences_contain_same_items(diff_a.diffs, diff_b.diffs)
 
 
+def _indices_of_changed_items(diff_list, context_limit):
+    '''
+    return the indexes of the insert|remove|changed DiffItems only. If a
+    DiffItem is wrapping a Diff instance call it's context slicer to
+    propogate formatting down the nested structure
+    '''
+    return [
+        _Window(i, context_limit) for i, diff_item in enumerate(diff_list)
+        if diff_item.state != unchanged]
+
+
+def _get_context_slice_indices(diff_list, context_limit):
+    '''
+    From the indices of changed items determine and create non-overlapping
+    context slices of the Diff.
+    '''
+    changed_indices = _indices_of_changed_items(diff_list, context_limit)
+    if not changed_indices:
+        return []
+    previous = changed_indices[0]
+    slices = []
+    s = [previous]
+    for current in changed_indices[1:]:
+        if previous.right >= current.left:
+            s.append(current)
+            previous = current
+        else:
+            slices.append(s)
+            s = [current]
+            previous = current
+    slices.append(s)
+    return [(i[0].left, i[-1].right) for i in slices]
+
+
+def context_slice(diff_list, context_limit):
+    return [
+        diff_list[start:end] for start, end in
+        _get_context_slice_indices(diff_list, context_limit)]
+
+
+def recursively_set_context_limit(diff, context_limit):
+    diff.context_limit = context_limit
+    for diff_item in diff:
+        if type(diff_item) == DiffItem:
+            item = diff_item.item
+        else:
+            item = diff_item.value
+        if isinstance(item, Diff):
+            recursively_set_context_limit(item, context_limit)
+
+
+@contextmanager
+def adjusted_context_limit(diff, context_limit):
+    recursively_set_context_limit(diff, context_limit)
+    yield
+    recursively_set_context_limit(diff, None)
+
+
 class Diff(object):
     '''
     A collection of DiffItems.
@@ -55,144 +122,25 @@ class Diff(object):
     :attribute type: The type of the objects being diffed
     :attribute diffs: A list containing all of the DiffItems including an
         unchanged ones.
-    :attribute context_blocks: A list containing slices of the diffs list which
-        have changes. Each slice is contained in a ContextBlock object.
-    :attribute context_limit: Determines how many unchanged items can be
-        included within a context block.
     :attribute depth: Indicates how deep this diff is in a nested diff.
 
     Diffs are uniquely identified by the values of their attributes.
-
-    :method create_context_blocks: Should be used after the Diff is fully
-        populated; running this method completes the diff making it usable
-        programmatically as well as making it display correctly.
     '''
-
-    class ContextBlock(object):
-        '''
-        Sub-collection of Diff items.
-
-        :attribute diffs: The list of DiffItems which are a part of this
-            context.
-        :attribute context: Only populated for sequences; a tuple of the form:
-            (f_start, f_end, t_start, t_end) where f_start:f_end is the slice
-            of the first object in the diff and t_start:t_end is the slice of
-            the second object in the diff that this ContextBlock contains.
-        :attribute depth: Depth of this context block in a nested diff.
-
-        ContextBlocks are uniquely identified by these attributes.
-        '''
-        def __init__(self, obj_type, diffs, depth=0):
-            self.type = obj_type
-            self.diffs = tuple(diffs)
-            self._indent = ' '*3
-            self.depth = depth
-            self.context = ()
-            if hasattr(self.diffs[0], 'context') and self.diffs[0].context:
-                from_start, _, to_start, _ = self.diffs[0].context
-                _, from_end, _, to_end = self.diffs[-1].context
-                self.context = (from_start, from_end, to_start, to_end)
-
-        def __str__(self):
-            # display a context banner at the top if we have context, ie we are
-            # diffing sequences.
-            output = []
-            if self.context:
-                f_s, f_e, t_s, t_e = map(str, self.context)
-                output.append(
-                    self._indent * self.depth + '@@ {}{},{} {}{},{} @@'.format(
-                        remove('-'), remove(f_s), remove(f_e),
-                        insert('+'), insert(t_s), insert(t_e)))
-            if self.type is str:
-                return '\n'.join(self._make_string_diff_output(output))
-            else:
-                return '\n'.join(self._make_diff_output(output))
-
-        def _make_string_diff_output(self, output):
-            diff_output = []
-            line_start = self._indent * self.depth + ' '
-            states = items = line_start
-            for i, item in enumerate(self.diffs):
-                states += item.state(state_to_prefix(item.state))
-                items += str(item)
-                if (len(line_start) + i) % (term.width - 1):
-                    line_in_progress = True
-                else:
-                    diff_output.extend([states, items])
-                    states = items = line_start
-                    line_in_progress = False
-            if line_in_progress:
-                diff_output.extend([states, items])
-            output.extend(diff_output)
-            return output
-
-        def _make_diff_output(self, output):
-            for item in self.diffs:
-                prefix = state_to_prefix(item.state)
-                output.append(
-                    self._indent * self.depth +
-                    '{} {}'.format(item.state(prefix), item))
-            return output
-
-        def __eq__(self, other):
-            return (
-                self.type == other.type and
-                diffs_are_equal(self, other) and
-                self.context == other.context)
-
-        def __ne__(self, other):
-            return not self == other
-
-    def __init__(self, obj_type, diffs, context_limit=3, depth=0):
+    def __init__(self, obj_type, diffs, depth=0):
         self.type = obj_type
         self.diffs = tuple(diffs)
-        self.context_blocks = []
-        self.context_limit = context_limit
+        # flag used by __format__ and the DiffContext context manager
+        self.context_limit = None
         self.depth = depth
-        self.indent = '   '
+        self._indent = '   ' * depth
         self.start = unchanged('{}('.format(self.type))
         self.end = unchanged(')')
-        self.create_context_blocks()
 
-    def _create_context_markers(self):
-        # FIXME: I suspect this can be simplified, but spent a good day getting
-        # nowhere trying... Also it is breaking MappingDiffItems up into context
-        # blocks which doesn't make much sense as they should not really be part
-        # of a sequence (same for sets). However a context banner is not
-        # displayed in these cases and I think the output is still useful and
-        # not too confusing.
-        context_markers = []
-        context_started = False
-        context_started_at = None
-        gap_between_change = 0
-        i = 0
-        for diff in self.diffs:
-            if diff.state is unchanged:
-                if context_started:
-                    if gap_between_change == self.context_limit:
-                        context_markers.append(
-                            (context_started_at, i-self.context_limit))
-                        context_started = False
-                        gap_between_change = 0
-                    else:
-                        gap_between_change += 1
-            # insert, removal or changed
-            else:
-                if context_started:
-                    gap_between_change = 0
-                else:
-                    context_started_at = i
-                    context_started = True
-            i += 1
-        # clean up the end if necessary
-        if context_started:
-            context_markers.append((context_started_at, i - gap_between_change))
-        return context_markers
-
-    def create_context_blocks(self):
-        self.context_blocks = [
-            self.ContextBlock(self.type, self.diffs[start:end], self.depth)
-            for start, end in self._create_context_markers()]
+    def _extract_context(self, context_block):
+        if hasattr(context_block[0], 'context') and context_block[0].context:
+            from_start, _, to_start, _ = context_block[0].context
+            _, from_end, _, to_end = context_block[-1].context
+            return (from_start, from_end, to_start, to_end)
 
     def __len__(self):
         return len(self.diffs)
@@ -212,8 +160,7 @@ class Diff(object):
     def __getitem__(self, index):
         cls = type(self)
         if isinstance(index, slice):
-            return cls(
-                self.type, self.diffs[index], self.context_limit, self.depth)
+            return cls(self.type, self.diffs[index], self.depth)
         elif isinstance(index, Integral):
             return self.diffs[index]
         else:
@@ -223,23 +170,75 @@ class Diff(object):
     def __eq__(self, other):
         eq = (
             self.type == other.type,
-            diffs_are_equal(self, other),
-            self.context_blocks == other.context_blocks,
-            self.context_limit == other.context_limit)
-        context_blocks = 2
-        if is_ordered(self.type):
-            return all(eq)
-        else:
-            return all(eq[:context_blocks] + eq[context_blocks + 1:])
+            diffs_are_equal(self, other))
+        return all(eq)
 
     def __ne__(self, other):
         return not self == other
 
+    def __format__(self, fmt_spec=''):
+        if fmt_spec.endswith('c'):
+            context_limit = int(fmt_spec[:-1])
+            with adjusted_context_limit(self, context_limit):
+                formatted_string = str(self)
+            return formatted_string
+        else:
+            return str(self)
+
+    def _make_context_banner(self, context_block):
+        context = self._extract_context(context_block)
+        if context:
+            f_s, f_e, t_s, t_e = map(str, context)
+            return self._indent + '@@ {}{},{} {}{},{} @@'.format(
+                    remove('-'), remove(f_s), remove(f_e),
+                    insert('+'), insert(t_s), insert(t_e))
+
     def __str__(self):
-        output = [self.start] + [
-            '{!s}'.format(cb) for cb in self.context_blocks] + [
-                self.indent * self.depth + self.end]
+        if not self.diffs:
+            return self.start + self.end
+
+        output = [self.start]
+        if self.context_limit is not None:
+            items_to_display = context_slice(self.diffs, self.context_limit)
+        else:
+            items_to_display = [self.diffs]
+
+        for context_block in items_to_display:
+            banner = self._make_context_banner(context_block)
+            if banner:
+                output.append(banner)
+            if self.type is str:
+                self._make_string_diff_output(output, context_block)
+            else:
+                self._make_diff_output(output, context_block)
+
+        output.append(self._indent + self.end)
         return '\n'.join(output)
+
+    def _make_string_diff_output(self, output, context_block):
+        diff_output = []
+        line_start = self._indent + ' '
+        states = items = line_start
+        for i, item in enumerate(context_block):
+            states += item.state(state_to_prefix(item.state))
+            items += str(item)
+            if (len(line_start) + i) % (term.width - 1):
+                line_in_progress = True
+            else:
+                diff_output.extend([states, items])
+                states = items = line_start
+                line_in_progress = False
+        if line_in_progress:
+            diff_output.extend([states, items])
+        output.extend(diff_output)
+        return output
+
+    def _make_diff_output(self, output, context_block):
+        for item in context_block:
+            prefix = state_to_prefix(item.state)
+            output.append(
+                self._indent + '{} {}'.format(item.state(prefix), item))
+        return output
 
 
 class DiffItem(object):
