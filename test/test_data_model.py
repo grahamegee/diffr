@@ -9,7 +9,7 @@ from diffr.data_model import (
     context_slice,
     diffs_are_equal,
     Diff, DiffItem, MappingDiffItem)
-from diffr.diff import insert, remove, unchanged, diff
+from diffr.diff import insert, remove, unchanged, changed, diff
 
 
 class SequencesContainSameItemsTests(unittest.TestCase):
@@ -194,12 +194,13 @@ class DiffDisplayTests(unittest.TestCase):
         sequences such that you only get the items contained within the
         displayed context block.
         '''
-        seq1 = [0, 1, 2, 3, 0]
-        seq2 = [0, 4, 2, 5, 0]
+        seq1 = [1, 2, 3]
+        seq2 = [4, 2, 5]
         # the useful context for this diff is the slice 1:4 in both sequences
-        s1_start = s2_start = '1'
-        s1_end = s2_end = '4'
+        s1_start = s2_start = '0'
+        s1_end = s2_end = '3'
         diff_obj = diff(seq1, seq2)
+        start = [unchanged('<class \'list\'>(')]
         expected_banner = [
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove(s1_start), remove(s1_end),
@@ -212,11 +213,11 @@ class DiffDisplayTests(unittest.TestCase):
             '{} {}'.format(remove('-'), remove('3')),
             '{} {}'.format(insert('+'), insert('5'))
         ]
-        expected_diff_output = '\n'.join(expected_banner + expected_diff_items)
-        # expected_diff_output is unicode type, convert to str for comparison
-        # FIXME: rework assertion without using context blocks
-        # self.assertEqual(
-        #    diff_obj.context_blocks[0].__str__(), str(expected_diff_output))
+        end = [unchanged(')')]
+        expected_diff_output = '\n'.join(
+            start + expected_banner + expected_diff_items + end)
+        self.assertEqual(
+            str(diff_obj), str(expected_diff_output))
 
     def test_no_context_banner_for_non_sequence(self):
         set1 = {1, 2}
@@ -229,13 +230,15 @@ class DiffDisplayTests(unittest.TestCase):
             '{} {}'.format(insert('+'), insert('b'))
         ]
         # allow the expected output to be unordered
-        # FIXME: rework without using context_blocks
-#        actual_string = diff_obj.context_blocks[0].__str__()
-#        actual_items = actual_string.split('\n')
-#        if sys.version_info.major >= 3:
-#            self.assertCountEqual(expected_diff_items, actual_items)
-#        else:
-#            self.assertItemsEqual(expected_diff_items, actual_items)
+        actual_string = str(diff_obj)
+        actual_items = actual_string.split('\n')
+        self.assertEqual(unchanged('<class \'set\'>('), actual_items[0])
+        self.assertEqual(unchanged(')'), actual_items[-1])
+        # strip off the type information at the top and bottom
+        if sys.version_info.major >= 3:
+            self.assertCountEqual(expected_diff_items, actual_items[1:-1])
+        else:
+            self.assertItemsEqual(expected_diff_items, actual_items[1:-1])
 
     def test_empty_diff(self):
         set1 = set()
@@ -296,6 +299,74 @@ class DiffDisplayTests(unittest.TestCase):
             unchanged(')')
         ]
         self.assertEqual(str(d), '\n'.join(expected_str))
+
+
+class DiffFormattingTests(unittest.TestCase):
+    def setUp(self):
+        self.nested_a = [0, 0, 0, '---a---', 0, 0, 0, 1, 0]
+        self.nested_b = [0, 0, 0, '---x---', 0, 0, 0, 2, 0]
+        self.diff_obj = diff(self.nested_a, self.nested_b)
+
+    def test_valid_format_spec_adjusts_diff_display(self):
+        '''
+        When we specify a context specifier with 'cn' where n is an int, the
+        the diff should focus display on only the changes. Allowing only n
+        unchanged items to be displaye either side of a remove or insert.
+        The context banners should be updated (and inserted) to make it clear
+        that we have broken up the diff into chunks that focus around change.
+        '''
+        indent = '   '
+        outer_start = [unchanged('<class \'list\'>(')]
+        outer_banner_1 = [
+            '@@ {}{},{} {}{},{} @@'.format(
+                remove('-'), remove('2'), remove('5'),
+                insert('+'), insert('2'), insert('5'))
+        ]
+        inner_start = [unchanged('<class \'str\'>(')]
+        inner_banner = [
+            indent + '@@ {}{},{} {}{},{} @@'.format(
+                remove('-'), remove('2'), remove('5'),
+                insert('+'), insert('2'), insert('5'))
+        ]
+        inner_items = [
+            indent + ' {}{}{}{}'.format(
+                unchanged(' '), remove('-'), insert('+'), unchanged(' ')),
+            indent + ' {}{}{}{}'.format(
+                unchanged('-'), remove('a'), insert('x'), unchanged('-'))
+        ]
+        inner_end = [indent + unchanged(')')]
+        outer_items_1 = [
+            '{} {}'.format(unchanged(' '), unchanged('0')),
+            '{} {}'.format(
+                changed(' '),
+                changed(
+                    '\n'.join(
+                        inner_start + inner_banner + inner_items + inner_end))),
+            '{} {}'.format(unchanged(' '), unchanged('0'))
+        ]
+        outer_banner_2 = [
+            '@@ {}{},{} {}{},{} @@'.format(
+                remove('-'), remove('6'), remove('9'),
+                insert('+'), insert('6'), insert('9'))
+        ]
+        outer_items_2 = [
+            '{} {}'.format(unchanged(' '), unchanged('0')),
+            '{} {}'.format(remove('-'), remove('1')),
+            '{} {}'.format(insert('+'), insert('2')),
+            '{} {}'.format(unchanged(' '), unchanged('0'))
+        ]
+        outer_end = [unchanged(')')]
+        expected_display = '\n'.join(
+            outer_start + outer_banner_1 + outer_items_1 + outer_banner_2 +
+            outer_items_2 + outer_end)
+        self.assertEqual(str(format(self.diff_obj, '1c')), expected_display)
+
+    def test_no_format_specifier_displays_full_diff(self):
+        self.assertEqual(str(self.diff_obj), format(self.diff_obj))
+
+    def test_invalid_format_spec_reverts_to_full_diff(self):
+        self.assertEqual(str(self.diff_obj), format(self.diff_obj, '%d'))
+
 
 class AdjustContextLimitTests(unittest.TestCase):
     def test_recursively_setting_context(self):
