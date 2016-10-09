@@ -94,12 +94,12 @@ class DiffTests(unittest.TestCase):
     def test_diff_slicing(self):
         d = diff('aabcdef', 'abcdef')
         s = d[1:]
-        self.assertEqual(s, Diff(str, d.diffs[1:]))
+        self.assertEqual(s, Diff(str, d._diffs[1:]))
 
     def test_diff_index(self):
         d = diff('aabcdef', 'abcdef')
         i = 0
-        self.assertEqual(d[i], d.diffs[i])
+        self.assertEqual(d[i], d._diffs[i])
 
     def test_getattr_fail(self):
         d = diff('aaa', 'bbb')
@@ -109,7 +109,7 @@ class DiffTests(unittest.TestCase):
     def test_iterate_over_diff(self):
         d = diff([1, 2, 3, 4], [2, 3, 4, 5])
         diff_items = [di for di in d]
-        self.assertEqual(tuple(diff_items), d.diffs)
+        self.assertEqual(tuple(diff_items), d._diffs)
 
 
 class DiffDisplayTests(unittest.TestCase):
@@ -119,14 +119,14 @@ class DiffDisplayTests(unittest.TestCase):
 
     def test_context_slice_no_differences(self):
         d = diff({1, 2, 3}, {1, 2, 3})
-        self.assertEqual(context_slice(d.diffs, 2), [])
+        self.assertEqual(context_slice(d._diffs, 2), [])
 
     def test_context_slice_one_changed_item(self):
         # the loop in get_context_slice_indices is skipped and "not slices"
         # branch is reached
         d = diff('-a', '-')
         self.assertEqual(
-            context_slice(d.diffs, 1),
+            context_slice(d._diffs, 1),
             [(
                 DiffItem(unchanged, '-', (0, 1, 0, 1)),
                 DiffItem(remove, 'a', (1, 2, 1, 1))
@@ -137,7 +137,7 @@ class DiffDisplayTests(unittest.TestCase):
         # branch is reached
         d = diff('a--b', '--')
         self.assertEqual(
-            context_slice(d.diffs, 0),
+            context_slice(d._diffs, 0),
             [
                 (DiffItem(remove, 'a', (0, 1, 0, 0)),),
                 (DiffItem(remove, 'b', (3, 4, 2, 2)),)
@@ -146,7 +146,7 @@ class DiffDisplayTests(unittest.TestCase):
     def test_context_slice_substitution_in_the_middle(self):
         d = diff('---a---', '---b---')
         self.assertEqual(
-            context_slice(d.diffs, 1),
+            context_slice(d._diffs, 1),
             [(
                 DiffItem(unchanged, '-', (2, 3, 2, 3)),
                 DiffItem(remove, 'a', (3, 4, 3, 3)),
@@ -157,7 +157,7 @@ class DiffDisplayTests(unittest.TestCase):
     def test_context_slice_two_substitutions_with_gap(self):
         d = diff('---a---x', '---b---y')
         self.assertEqual(
-            context_slice(d.diffs, 1),
+            context_slice(d._diffs, 1),
             [
                 (
                     DiffItem(unchanged, '-', (2, 3, 2, 3)),
@@ -373,13 +373,13 @@ class AdjustContextLimitTests(unittest.TestCase):
         a = [0, 0, {1: 'aa', 2: 2}]
         b = [0, 0, {1: 'ab', 2: 2}]
         d = diff(a, b)
-        self.assertEqual(d.context_limit, None)
-        self.assertEqual(d[2].item.context_limit, None)
-        self.assertEqual(d[2].item[0].value.context_limit, None)
+        self.assertEqual(d._context_limit, None)
+        self.assertEqual(d[2].item._context_limit, None)
+        self.assertEqual(d[2].item[0].value._context_limit, None)
         recursively_set_context_limit(d, 0)
-        self.assertEqual(d.context_limit, 0)
-        self.assertEqual(d[2].item.context_limit, 0)
-        self.assertEqual(d[2].item[0].value.context_limit, 0)
+        self.assertEqual(d._context_limit, 0)
+        self.assertEqual(d[2].item._context_limit, 0)
+        self.assertEqual(d[2].item[0].value._context_limit, 0)
 
     def test_adjusted_context_limit(self):
         # Yeah possibly unnecessary. check that a context manager behaves like
@@ -387,10 +387,10 @@ class AdjustContextLimitTests(unittest.TestCase):
         a = '---a---'
         b = '---b---'
         d = diff(a, b)
-        self.assertEqual(d.context_limit, None)
+        self.assertEqual(d._context_limit, None)
         with adjusted_context_limit(d, 2):
-            self.assertEqual(d.context_limit, 2)
-        self.assertEqual(d.context_limit, None)
+            self.assertEqual(d._context_limit, 2)
+        self.assertEqual(d._context_limit, None)
 
 
 class DiffComparisonTests(unittest.TestCase):
@@ -408,16 +408,16 @@ class DiffComparisonTests(unittest.TestCase):
         self.assertEqual(self.base_diff, self.expected_diff)
 
     def test_diffs_differ_by_type(self):
-        self.expected_diff.type = tuple
+        self.expected_diff._type = tuple
         self.assertNotEqual(self.base_diff, self.expected_diff)
 
     def test_diffs_with_different_depths_compare_equal(self):
         d1 = diff([1, 2, 3], [2, 3])
         d2 = diff({'a': [1, 2, 3]}, {'a': [2, 3]})
-        self.assertEqual(d1, d2.diffs[0].value)
+        self.assertEqual(d1, d2[0].value)
 
     def test_diffs_differ_by_diffs(self):
-        self.expected_diff.diffs = []
+        self.expected_diff._diffs = []
         self.assertNotEqual(self.base_diff, self.expected_diff)
 
 
