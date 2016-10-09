@@ -276,6 +276,18 @@ class DiffItem(object):
     def __ne__(self, other):
         return not self == other
 
+    def __format__(self, fmt_spec):
+        if fmt_spec.endswith('c'):
+            if self.state == changed:
+                context_limit = int(fmt_spec[:-1])
+                with adjusted_context_limit(self.item, context_limit):
+                    formatted_string = str(self)
+                return formatted_string
+            raise ValueError(
+                'format specifier \'c\' can be only used on Diff instances')
+        else:
+            return str(self)
+
 
 class MappingDiffItem(DiffItem):
     '''
@@ -308,3 +320,15 @@ class MappingDiffItem(DiffItem):
 
     def __ne__(self, other):
         return not self == other
+
+    def __format__(self, fmt_spec):
+        if fmt_spec.endswith('c'):
+            if self.state == changed:
+                context_limit = int(fmt_spec[:-1])
+                with adjusted_context_limit(self.value, context_limit):
+                    formatted_string = str(self)
+                return formatted_string
+            raise ValueError(
+                'format specifier \'c\' can only be used on Diff instances')
+        else:
+            return str(self)
