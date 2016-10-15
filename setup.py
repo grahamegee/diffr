@@ -2,13 +2,13 @@ from setuptools import setup, find_packages
 
 setup(
     name='diffr',
-    version='1.0',
+    version='1.1',
     description='Diff and patch Python data structures',
     keywords=['diff', 'diffing', 'test'],
     author='Grahame Gardiner',
     author_email='grahamegee@gmail.com',
     url='https://github.com/grahamegee/differ',
-    download_url='https://github.com/grahamegee/diffr/releases/tag/1.0',
+    download_url='https://github.com/grahamegee/diffr/releases/tag/1.1',
     license='MIT',
     packages=find_packages(
         exclude=['examples', 'test', 'contrib']),
