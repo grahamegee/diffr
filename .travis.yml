@@ -12,3 +12,8 @@ script:
     nosetests --with-coverage --cover-package=diffr --cover-branches
 after_success:
     coveralls
+deploy:
+    provider: pypi
+    user: "grahamegee"
+    on:
+        tags: true
