@@ -129,7 +129,7 @@ class Diff(object):
         self._context_limit = None
         self._depth = depth
         self._indent = '   ' * self._depth
-        self._start = unchanged('{}('.format(self._type))
+        self._start = unchanged('{}('.format(self._type.__name__))
         self._end = unchanged(')')
 
     @property

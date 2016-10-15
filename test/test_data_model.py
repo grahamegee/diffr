@@ -200,7 +200,7 @@ class DiffDisplayTests(unittest.TestCase):
         s1_start = s2_start = '0'
         s1_end = s2_end = '3'
         diff_obj = diff(seq1, seq2)
-        start = [unchanged('{}('.format(type([])))]
+        start = [unchanged('{}('.format(type([]).__name__))]
         expected_banner = [
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove(s1_start), remove(s1_end),
@@ -232,7 +232,8 @@ class DiffDisplayTests(unittest.TestCase):
         # allow the expected output to be unordered
         actual_string = str(diff_obj)
         actual_items = actual_string.split('\n')
-        self.assertEqual(unchanged('{}('.format(type(set()))), actual_items[0])
+        self.assertEqual(
+            unchanged('{}('.format(type(set()).__name__)), actual_items[0])
         self.assertEqual(unchanged(')'), actual_items[-1])
         # strip off the type information at the top and bottom
         if sys.version_info.major >= 3:
@@ -245,7 +246,7 @@ class DiffDisplayTests(unittest.TestCase):
         set2 = set()
         diff_obj = diff(set1, set2)
         expected_diff_output = '{}{}'.format(
-            unchanged('{!s}('.format(type(set1))),
+            unchanged('{!s}('.format(type(set1).__name__)),
             unchanged(')'))
         self.assertEqual(str(diff_obj), expected_diff_output)
 
@@ -254,7 +255,7 @@ class DiffDisplayTests(unittest.TestCase):
         b = 'that'
         d = diff(a, b)
         expected_str = [
-            unchanged('{!s}('.format(type(a))),
+            unchanged('{!s}('.format(type(a).__name__)),
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove('0'), remove('4'),
                 insert('+'), insert('0'), insert('4')),
@@ -273,7 +274,7 @@ class DiffDisplayTests(unittest.TestCase):
         b = 'a' * term.width
         d = diff(a, b)
         expected_str = [
-            unchanged('{!s}('.format(type(a))),
+            unchanged('{!s}('.format(type(a).__name__)),
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove('0'), remove('0'),
                 insert('+'), insert('0'), insert('{}'.format(term.width))),
@@ -290,7 +291,7 @@ class DiffDisplayTests(unittest.TestCase):
         b = 'a' * (term.width - 1)
         d = diff(a, b)
         expected_str = [
-            unchanged('{!s}('.format(type(a))),
+            unchanged('{!s}('.format(type(a).__name__)),
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove('0'), remove('0'),
                 insert('+'), insert('0'), insert('{}'.format(term.width - 1))),
@@ -317,13 +318,13 @@ class DiffFormattingTests(unittest.TestCase):
         that we have broken up the diff into chunks that focus around change.
         '''
         indent = '   '
-        outer_start = [unchanged('{}('.format(type([])))]
+        outer_start = [unchanged('{}('.format(type([]).__name__))]
         outer_banner_1 = [
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove('2'), remove('5'),
                 insert('+'), insert('2'), insert('5'))
         ]
-        inner_start = [unchanged('{}('.format(type('')))]
+        inner_start = [unchanged('{}('.format(type('').__name__))]
         inner_banner = [
             indent + '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove('2'), remove('5'),
@@ -369,7 +370,7 @@ class DiffFormattingTests(unittest.TestCase):
         self.assertEqual(str(self.diff_obj), format(self.diff_obj, '%d'))
 
     def test_format_a_diff_slice(self):
-        outer_start = [unchanged('{}('.format(type([])))]
+        outer_start = [unchanged('{}('.format(type([]).__name__))]
         outer_banner = [
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove('3'), remove('4'),
@@ -525,4 +526,3 @@ class MappingDiffItemTests(unittest.TestCase):
         self.assertEqual(
             format(diff_item, '2f'),
             '{}: {}'.format(unchanged(str(1)), changed(str(d))))
-
