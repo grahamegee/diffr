@@ -50,9 +50,9 @@ def diffs_are_equal(diff_a, diff_b):
     # somone is bound to try and use this library with an implementation of
     # ordered set, I can only deal with the ones I know about.
     if is_ordered(diff_a.type):
-        return diff_a.diffs == diff_b.diffs
+        return diff_a._diffs == diff_b._diffs
     else:
-        return sequences_contain_same_items(diff_a.diffs, diff_b.diffs)
+        return sequences_contain_same_items(diff_a._diffs, diff_b._diffs)
 
 
 def _indices_of_changed_items(diff_list, context_limit):
@@ -96,7 +96,7 @@ def context_slice(diff_list, context_limit):
 
 
 def recursively_set_context_limit(diff, context_limit):
-    diff.context_limit = context_limit
+    diff._context_limit = context_limit
     for diff_item in diff:
         if type(diff_item) == DiffItem:
             item = diff_item.item
@@ -119,22 +119,26 @@ class Diff(object):
     It can also can be wrapped in a DiffItem as an item of a higher level Diff
     ie the objects being diffed are nested.
 
-    :attribute type: The type of the objects being diffed
-    :attribute diffs: A list containing all of the DiffItems including an
-        unchanged ones.
-    :attribute depth: Indicates how deep this diff is in a nested diff.
-
-    Diffs are uniquely identified by the values of their attributes.
+    :property type: The type of the objects being diffed
+    :property depth: Indicates how deep this diff is in a nested diff.
     '''
     def __init__(self, obj_type, diffs, depth=0):
-        self.type = obj_type
-        self.diffs = tuple(diffs)
+        self._type = obj_type
+        self._diffs = tuple(diffs)
         # flag used by __format__ and the DiffContext context manager
-        self.context_limit = None
-        self.depth = depth
-        self._indent = '   ' * depth
-        self.start = unchanged('{}('.format(self.type))
-        self.end = unchanged(')')
+        self._context_limit = None
+        self._depth = depth
+        self._indent = '   ' * self._depth
+        self._start = unchanged('{}('.format(self._type.__name__))
+        self._end = unchanged(')')
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def depth(self):
+        return self._depth
 
     def _extract_context(self, context_block):
         if hasattr(context_block[0], 'context') and context_block[0].context:
@@ -143,11 +147,11 @@ class Diff(object):
             return (from_start, from_end, to_start, to_end)
 
     def __len__(self):
-        return len(self.diffs)
+        return len(self._diffs)
 
     def __bool__(self):
-        if self.diffs:
-            return any(d.state != unchanged for d in self.diffs)
+        if self._diffs:
+            return any(d.state != unchanged for d in self._diffs)
         return False
 
     def __nonzero__(self):
@@ -155,21 +159,21 @@ class Diff(object):
         return self.__bool__()
 
     def __iter__(self):
-        return iter(self.diffs)
+        return iter(self._diffs)
 
     def __getitem__(self, index):
         cls = type(self)
         if isinstance(index, slice):
-            return cls(self.type, self.diffs[index], self.depth)
+            return cls(self._type, self._diffs[index], self._depth)
         elif isinstance(index, Integral):
-            return self.diffs[index]
+            return self._diffs[index]
         else:
             msg = '{.__name__} indices must be integers'
             raise TypeError(msg.format(cls))
 
     def __eq__(self, other):
         eq = (
-            self.type == other.type,
+            self._type == other._type,
             diffs_are_equal(self, other))
         return all(eq)
 
@@ -194,25 +198,25 @@ class Diff(object):
                     insert('+'), insert(t_s), insert(t_e))
 
     def __str__(self):
-        if not self.diffs:
-            return self.start + self.end
+        if not self._diffs:
+            return self._start + self._end
 
-        output = [self.start]
-        if self.context_limit is not None:
-            items_to_display = context_slice(self.diffs, self.context_limit)
+        output = [self._start]
+        if self._context_limit is not None:
+            items_to_display = context_slice(self._diffs, self._context_limit)
         else:
-            items_to_display = [self.diffs]
+            items_to_display = [self._diffs]
 
         for context_block in items_to_display:
             banner = self._make_context_banner(context_block)
             if banner:
                 output.append(banner)
-            if self.type is str:
+            if self._type is str:
                 self._make_string_diff_output(output, context_block)
             else:
                 self._make_diff_output(output, context_block)
 
-        output.append(self._indent + self.end)
+        output.append(self._indent + self._end)
         return '\n'.join(output)
 
     def _make_string_diff_output(self, output, context_block):
@@ -272,6 +276,18 @@ class DiffItem(object):
     def __ne__(self, other):
         return not self == other
 
+    def __format__(self, fmt_spec):
+        if fmt_spec.endswith('c'):
+            if self.state == changed:
+                context_limit = int(fmt_spec[:-1])
+                with adjusted_context_limit(self.item, context_limit):
+                    formatted_string = str(self)
+                return formatted_string
+            raise ValueError(
+                'format specifier \'c\' can be only used on Diff instances')
+        else:
+            return str(self)
+
 
 class MappingDiffItem(DiffItem):
     '''
@@ -304,3 +320,15 @@ class MappingDiffItem(DiffItem):
 
     def __ne__(self, other):
         return not self == other
+
+    def __format__(self, fmt_spec):
+        if fmt_spec.endswith('c'):
+            if self.state == changed:
+                context_limit = int(fmt_spec[:-1])
+                with adjusted_context_limit(self.value, context_limit):
+                    formatted_string = str(self)
+                return formatted_string
+            raise ValueError(
+                'format specifier \'c\' can only be used on Diff instances')
+        else:
+            return str(self)

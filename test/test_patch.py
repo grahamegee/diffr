@@ -241,5 +241,5 @@ class PatchTests(unittest.TestCase):
         b = [2]
         c = 1
         d = diff(a, b)
-        d.type = int
+        d._type = int
         self.assertRaises(TypeError, patch, c, d)

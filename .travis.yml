@@ -1,14 +1,18 @@
 language: python
 python:
-    - "2.7"
-#    - "3.2"
-    - "3.3"
-    - "3.4"
-    - "3.5"
-install: 
-    - pip install .
-    - pip install coveralls
-script: 
-    nosetests --with-coverage --cover-package=diffr --cover-branches
-after_success:
-    coveralls
+- '2.7'
+- '3.3'
+- '3.4'
+- '3.5'
+install:
+- pip install .
+- pip install coveralls
+script: nosetests --with-coverage --cover-package=diffr --cover-branches
+after_success: coveralls
+deploy:
+  provider: pypi
+  user: grahamegee
+  on:
+    tags: true
+  password:
+    secure: lwwQCLEIPb0IidkC9ztsj/c+PAvNQArR3xawAr8Vg8miUNJPk27sxYftkrt2wBXV3azi2ddI9N3AtTjDBtamG7TgOIvDVIKmmSYmUxmB9dSZBFI46kUI70sBp3cPb4FqAwervQRkD+G7nmcPj0Gt517J8X7crc4mS+Fec+1cQHFn6RvzzNO7Rxnwv2GWpZDJUVvBuGeC0EmiZj084mSyXYM/YKTslqefLBTVKAXZj/tCszY3OMTPufWpOeDUSO4bf2nnfZlygFmEZuiD/YbPEws+d4ZCMkYb4pLB4KYrGKoDMiPANlo1Snhb8jMM7AijrK9PyYHafl44EQI5mXR5GueSj5LDgokYZVAqUsp11v55o3zIKCeMuGUGazdqJ7qg+ATW6sAxeo1eujTIc8Q/X3lfEuKgsIcDxHQe7xImISGH3nnq0BJzT1KVRvvhM3tmedCG0Qg6nDHzRn9uB17SPFkUYnzTBilVG6wevrklAcK2Mbo8vwYMO5PslRBAsee68vy/QzLvqHC9yRql2vw2ccTt61aDYI0YAogWlxdr0g4AaWQuvV50sELIGrOq15cRLH4MkegkLdNVkDaVsc8vMDzNQscSYV1Jzyr/qBk0ObfEED7vMRccJVweXNp48s0t1pNHaHrsLxekrjhBqDSDBREjiVpAg1x+pBnYrUm3bQw=

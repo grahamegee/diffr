@@ -94,12 +94,12 @@ class DiffTests(unittest.TestCase):
     def test_diff_slicing(self):
         d = diff('aabcdef', 'abcdef')
         s = d[1:]
-        self.assertEqual(s, Diff(str, d.diffs[1:]))
+        self.assertEqual(s, Diff(str, d._diffs[1:]))
 
     def test_diff_index(self):
         d = diff('aabcdef', 'abcdef')
         i = 0
-        self.assertEqual(d[i], d.diffs[i])
+        self.assertEqual(d[i], d._diffs[i])
 
     def test_getattr_fail(self):
         d = diff('aaa', 'bbb')
@@ -109,7 +109,7 @@ class DiffTests(unittest.TestCase):
     def test_iterate_over_diff(self):
         d = diff([1, 2, 3, 4], [2, 3, 4, 5])
         diff_items = [di for di in d]
-        self.assertEqual(tuple(diff_items), d.diffs)
+        self.assertEqual(tuple(diff_items), d._diffs)
 
 
 class DiffDisplayTests(unittest.TestCase):
@@ -119,14 +119,14 @@ class DiffDisplayTests(unittest.TestCase):
 
     def test_context_slice_no_differences(self):
         d = diff({1, 2, 3}, {1, 2, 3})
-        self.assertEqual(context_slice(d.diffs, 2), [])
+        self.assertEqual(context_slice(d._diffs, 2), [])
 
     def test_context_slice_one_changed_item(self):
         # the loop in get_context_slice_indices is skipped and "not slices"
         # branch is reached
         d = diff('-a', '-')
         self.assertEqual(
-            context_slice(d.diffs, 1),
+            context_slice(d._diffs, 1),
             [(
                 DiffItem(unchanged, '-', (0, 1, 0, 1)),
                 DiffItem(remove, 'a', (1, 2, 1, 1))
@@ -137,7 +137,7 @@ class DiffDisplayTests(unittest.TestCase):
         # branch is reached
         d = diff('a--b', '--')
         self.assertEqual(
-            context_slice(d.diffs, 0),
+            context_slice(d._diffs, 0),
             [
                 (DiffItem(remove, 'a', (0, 1, 0, 0)),),
                 (DiffItem(remove, 'b', (3, 4, 2, 2)),)
@@ -146,7 +146,7 @@ class DiffDisplayTests(unittest.TestCase):
     def test_context_slice_substitution_in_the_middle(self):
         d = diff('---a---', '---b---')
         self.assertEqual(
-            context_slice(d.diffs, 1),
+            context_slice(d._diffs, 1),
             [(
                 DiffItem(unchanged, '-', (2, 3, 2, 3)),
                 DiffItem(remove, 'a', (3, 4, 3, 3)),
@@ -157,7 +157,7 @@ class DiffDisplayTests(unittest.TestCase):
     def test_context_slice_two_substitutions_with_gap(self):
         d = diff('---a---x', '---b---y')
         self.assertEqual(
-            context_slice(d.diffs, 1),
+            context_slice(d._diffs, 1),
             [
                 (
                     DiffItem(unchanged, '-', (2, 3, 2, 3)),
@@ -200,7 +200,7 @@ class DiffDisplayTests(unittest.TestCase):
         s1_start = s2_start = '0'
         s1_end = s2_end = '3'
         diff_obj = diff(seq1, seq2)
-        start = [unchanged('{}('.format(type([])))]
+        start = [unchanged('{}('.format(type([]).__name__))]
         expected_banner = [
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove(s1_start), remove(s1_end),
@@ -232,7 +232,8 @@ class DiffDisplayTests(unittest.TestCase):
         # allow the expected output to be unordered
         actual_string = str(diff_obj)
         actual_items = actual_string.split('\n')
-        self.assertEqual(unchanged('{}('.format(type(set()))), actual_items[0])
+        self.assertEqual(
+            unchanged('{}('.format(type(set()).__name__)), actual_items[0])
         self.assertEqual(unchanged(')'), actual_items[-1])
         # strip off the type information at the top and bottom
         if sys.version_info.major >= 3:
@@ -245,7 +246,7 @@ class DiffDisplayTests(unittest.TestCase):
         set2 = set()
         diff_obj = diff(set1, set2)
         expected_diff_output = '{}{}'.format(
-            unchanged('{!s}('.format(type(set1))),
+            unchanged('{!s}('.format(type(set1).__name__)),
             unchanged(')'))
         self.assertEqual(str(diff_obj), expected_diff_output)
 
@@ -254,7 +255,7 @@ class DiffDisplayTests(unittest.TestCase):
         b = 'that'
         d = diff(a, b)
         expected_str = [
-            unchanged('{!s}('.format(type(a))),
+            unchanged('{!s}('.format(type(a).__name__)),
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove('0'), remove('4'),
                 insert('+'), insert('0'), insert('4')),
@@ -273,7 +274,7 @@ class DiffDisplayTests(unittest.TestCase):
         b = 'a' * term.width
         d = diff(a, b)
         expected_str = [
-            unchanged('{!s}('.format(type(a))),
+            unchanged('{!s}('.format(type(a).__name__)),
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove('0'), remove('0'),
                 insert('+'), insert('0'), insert('{}'.format(term.width))),
@@ -290,7 +291,7 @@ class DiffDisplayTests(unittest.TestCase):
         b = 'a' * (term.width - 1)
         d = diff(a, b)
         expected_str = [
-            unchanged('{!s}('.format(type(a))),
+            unchanged('{!s}('.format(type(a).__name__)),
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove('0'), remove('0'),
                 insert('+'), insert('0'), insert('{}'.format(term.width - 1))),
@@ -303,6 +304,7 @@ class DiffDisplayTests(unittest.TestCase):
 
 class DiffFormattingTests(unittest.TestCase):
     def setUp(self):
+        self.maxDiff = None
         self.nested_a = [0, 0, 0, '---a---', 0, 0, 0, 1, 0]
         self.nested_b = [0, 0, 0, '---x---', 0, 0, 0, 2, 0]
         self.diff_obj = diff(self.nested_a, self.nested_b)
@@ -316,13 +318,13 @@ class DiffFormattingTests(unittest.TestCase):
         that we have broken up the diff into chunks that focus around change.
         '''
         indent = '   '
-        outer_start = [unchanged('{}('.format(type([])))]
+        outer_start = [unchanged('{}('.format(type([]).__name__))]
         outer_banner_1 = [
             '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove('2'), remove('5'),
                 insert('+'), insert('2'), insert('5'))
         ]
-        inner_start = [unchanged('{}('.format(type('')))]
+        inner_start = [unchanged('{}('.format(type('').__name__))]
         inner_banner = [
             indent + '@@ {}{},{} {}{},{} @@'.format(
                 remove('-'), remove('2'), remove('5'),
@@ -367,19 +369,42 @@ class DiffFormattingTests(unittest.TestCase):
     def test_invalid_format_spec_reverts_to_full_diff(self):
         self.assertEqual(str(self.diff_obj), format(self.diff_obj, '%d'))
 
+    def test_format_a_diff_slice(self):
+        outer_start = [unchanged('{}('.format(type([]).__name__))]
+        outer_banner = [
+            '@@ {}{},{} {}{},{} @@'.format(
+                remove('-'), remove('3'), remove('4'),
+                insert('+'), insert('3'), insert('4'))
+        ]
+        slice_output = [
+            '{} {}'.format(
+                changed(' '),
+                changed(format(diff('---a---', '---x---', _depth=1), '1c'))
+            )
+        ]
+        outer_end = [unchanged(')')]
+        expected_display = '\n'.join(
+            outer_start + outer_banner + slice_output + outer_end)
+        self.assertEqual(format(self.diff_obj[3:4], '1c'), expected_display)
+
+    def test_format_diff_index(self):
+        expected_display = changed(
+            format(diff('---a---', '---x---', _depth=1), '1c'))
+        self.assertEqual(format(self.diff_obj[3], '1c'), expected_display)
+
 
 class AdjustContextLimitTests(unittest.TestCase):
     def test_recursively_setting_context(self):
         a = [0, 0, {1: 'aa', 2: 2}]
         b = [0, 0, {1: 'ab', 2: 2}]
         d = diff(a, b)
-        self.assertEqual(d.context_limit, None)
-        self.assertEqual(d[2].item.context_limit, None)
-        self.assertEqual(d[2].item[0].value.context_limit, None)
+        self.assertEqual(d._context_limit, None)
+        self.assertEqual(d[2].item._context_limit, None)
+        self.assertEqual(d[2].item[0].value._context_limit, None)
         recursively_set_context_limit(d, 0)
-        self.assertEqual(d.context_limit, 0)
-        self.assertEqual(d[2].item.context_limit, 0)
-        self.assertEqual(d[2].item[0].value.context_limit, 0)
+        self.assertEqual(d._context_limit, 0)
+        self.assertEqual(d[2].item._context_limit, 0)
+        self.assertEqual(d[2].item[0].value._context_limit, 0)
 
     def test_adjusted_context_limit(self):
         # Yeah possibly unnecessary. check that a context manager behaves like
@@ -387,10 +412,10 @@ class AdjustContextLimitTests(unittest.TestCase):
         a = '---a---'
         b = '---b---'
         d = diff(a, b)
-        self.assertEqual(d.context_limit, None)
+        self.assertEqual(d._context_limit, None)
         with adjusted_context_limit(d, 2):
-            self.assertEqual(d.context_limit, 2)
-        self.assertEqual(d.context_limit, None)
+            self.assertEqual(d._context_limit, 2)
+        self.assertEqual(d._context_limit, None)
 
 
 class DiffComparisonTests(unittest.TestCase):
@@ -408,16 +433,16 @@ class DiffComparisonTests(unittest.TestCase):
         self.assertEqual(self.base_diff, self.expected_diff)
 
     def test_diffs_differ_by_type(self):
-        self.expected_diff.type = tuple
+        self.expected_diff._type = tuple
         self.assertNotEqual(self.base_diff, self.expected_diff)
 
     def test_diffs_with_different_depths_compare_equal(self):
         d1 = diff([1, 2, 3], [2, 3])
         d2 = diff({'a': [1, 2, 3]}, {'a': [2, 3]})
-        self.assertEqual(d1, d2.diffs[0].value)
+        self.assertEqual(d1, d2[0].value)
 
     def test_diffs_differ_by_diffs(self):
-        self.expected_diff.diffs = []
+        self.expected_diff._diffs = []
         self.assertNotEqual(self.base_diff, self.expected_diff)
 
 
@@ -440,6 +465,17 @@ class DiffItemTests(unittest.TestCase):
     def test_diff_items_differ_by_item(self):
         self.assertNotEqual(
             self.base_diff_item, DiffItem(insert, 2))
+
+    def test_format_a_diff_item_containing_a_diff(self):
+        d = diff('--a--', '--b--')
+        diff_item = DiffItem(changed, d)
+        self.assertEqual(
+            format(diff_item, '1c'), changed(format(d, '1c')))
+
+    def test_format_a_diff_item_not_containing_a_diff(self):
+        diff_item = DiffItem(insert, 0)
+        self.assertRaises(
+            ValueError, format, diff_item, '1c')
 
 
 class MappingDiffItemTests(unittest.TestCase):
@@ -471,3 +507,22 @@ class MappingDiffItemTests(unittest.TestCase):
         self.assertNotEqual(
             self.base_diff_item, MappingDiffItem(
                 insert, 'a', insert, 2))
+
+    def test_format_a_diff_item_containing_a_diff(self):
+        d = diff('--a--', '--b--')
+        diff_item = MappingDiffItem(unchanged, 1, changed, d)
+        self.assertEqual(
+            format(diff_item, '1c'),
+            '{}: {}'.format(unchanged(str(1)), changed(format(d, '1c'))))
+
+    def test_format_a_diff_item_not_containing_a_diff(self):
+        diff_item = MappingDiffItem(insert, 1, insert, 'a')
+        self.assertRaises(
+            ValueError, format, diff_item, '1c')
+
+    def test_dont_use_context_format_specifier(self):
+        d = diff('--a--', '--b--')
+        diff_item = MappingDiffItem(unchanged, 1, changed, d)
+        self.assertEqual(
+            format(diff_item, '2f'),
+            '{}: {}'.format(unchanged(str(1)), changed(str(d))))

@@ -77,7 +77,7 @@ def object_constructor(obj):
 def patch_sequence(obj, diff):
     patched = deepcopy(obj)
     offset = 0
-    for diff_item in diff.diffs:
+    for diff_item in diff:
         start, end, _, _ = diff_item.context
         if diff_item.state is remove:
             validate_removal(lambda: (obj[start], diff_item))
@@ -147,7 +147,7 @@ def patch_mapping(obj, diff):
     # followed by a remove, as it stands this would cause patch to actually
     # remove it completely!
     patched = deepcopy(obj)
-    for map_item in diff.diffs:
+    for map_item in diff:
         if map_item.state is remove:
             validate_mapping_removal(
                 lambda: (map_item.value, patched[map_item.key]))
@@ -184,7 +184,7 @@ def patch_ordered_mapping(obj, diff):
     # treated pretty much in the same way as a sequence.
     patched_items = list(obj.items())
     offset = 0
-    for i, diff_item in enumerate(diff.diffs):
+    for i, diff_item in enumerate(diff):
         if diff_item.state is remove:
             validate_removal(lambda: (patched_items[i + offset], diff_item))
             patched_items = (
@@ -214,9 +214,9 @@ def patch_ordered_mapping(obj, diff):
 
 
 def patch_set(obj, diff):
-    removals = set([di.item for di in diff.diffs if di.state is remove])
+    removals = set([di.item for di in diff if di.state is remove])
     if removals.intersection(obj) != removals:
         raise ValueError(
             'Some items subject to removal do not exist in patch target')
-    inserts = set([di.item for di in diff.diffs if di.state is insert])
+    inserts = set([di.item for di in diff if di.state is insert])
     return type(obj)(obj.difference(removals).union(inserts))
